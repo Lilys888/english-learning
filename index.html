@@ -696,7 +696,8 @@ function nextCard(d){
 }
 
 /* ================= 自动连播（英文 + 释义） ================= */
-var autoPlay = { on: false, timer: null };
+var autoPlay = { on: false, timer: null, gen: 0 };
+function onceFn(fn){ var d = false; return function(){ if(d) return; d = true; fn(); }; }
 /* 带完成回调的顺序朗读：播完（或全部接口失败后系统语音播完）再执行 cb */
 function speakThen(text, cb){
   if(!text){ cb(); return; }
@@ -715,26 +716,54 @@ function speakThen(text, cb){
     urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
             "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
   }
-  playListThen(urls, 0, text, cb);
+  playListThen(urls, 0, text, onceFn(cb));
+}
+function stopAllAudio(){
+  /* 彻底停掉当前所有可能出声的通道 */
+  if(curAudio){
+    try{ curAudio.pause(); }catch(e){}
+    try{ curAudio.src = ""; }catch(e){}   /* 断开加载，防止还在缓冲后出声 */
+    curAudio = null;
+  }
+  try{ speechSynthesis.cancel(); }catch(e){}
 }
 function playListThen(urls, i, text, cb){
+  cb = onceFn(cb);
   if(i >= urls.length){
     /* 网络接口都失败 → 系统语音兜底，播完再回调 */
     try{
       var u = new SpeechSynthesisUtterance(text);
       u.lang = isChinese(text) ? "zh-CN" : "en-US"; u.rate = 0.92;
-      var done = false; function fin(){ if(done) return; done = true; cb(); }
-      u.onend = fin; u.onerror = fin;
+      u.onend = cb; u.onerror = cb;
       speechSynthesis.speak(u);
-      setTimeout(fin, Math.max(2500, text.length * 400));  /* 兜底：个别浏览器不触发 onend */
+      setTimeout(cb, Math.max(2500, text.length * 400));  /* 兜底：个别浏览器不触发 onend */
     }catch(e){ cb(); }
     return;
   }
   var a = new Audio(urls[i]);
-  a.onerror = function(){ playListThen(urls, i + 1, text, cb); };
-  a.onended = function(){ curAudio = null; cb(); };
-  a.play().catch(function(){ playListThen(urls, i + 1, text, cb); });
+  a.preload = "auto";
+  var failed = false;
+  function fail(){
+    if(failed) return;
+    failed = true;
+    /* 关键：先把这段音频彻底停掉，避免它其实还能出声时又去播下一个 */
+    try{ a.pause(); }catch(e){}
+    try{ a.src = ""; }catch(e){}
+    if(curAudio === a) curAudio = null;
+    playListThen(urls, i + 1, text, cb);
+  }
+  a.onerror = fail;
+  a.onended = function(){ if(curAudio === a) curAudio = null; cb(); };
+  a.play().catch(function(){ /* play()被拒：部分浏览器拒绝时音频仍在播，必须先停再重试 */
+    fail();
+  });
   curAudio = a;
+  /* 看门狗：音频既没成功结束也没报错（网络挂起等），超时后放弃这段继续 */
+  setTimeout(function(){
+    if(curAudio === a && !failed){
+      try{ if(a.readyState < 2 || a.paused){ fail(); } }catch(e){ fail(); }
+    }
+  }, 12000);
 }
 function autoTransOf(it){
   return (it.tr || []).map(function(t){ return (t.p ? t.p + " " : "") + t.c; }).join("；");
@@ -746,35 +775,39 @@ function toggleAutoPlay(){
 function startAutoPlay(){
   if(!viewWords.length){ toast("当前没有可播放的单词"); return; }
   autoPlay.on = true;
+  autoPlay.gen++;                        /* 代际 +1：旧链的所有回调立即作废 */
+  stopAllAudio();
   cardIdx = 0; renderCard();              /* 从第一个单词开始 */
   $("btnAuto").textContent = "⏹ 停止连播";
-  playCurAuto();
+  playCurAuto(autoPlay.gen);
 }
 function stopAutoPlay(){
   autoPlay.on = false;
+  autoPlay.gen++;                        /* 作废所有在途回调 */
   clearTimeout(autoPlay.timer);
-  if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
-  try{ speechSynthesis.cancel(); }catch(e){}
+  stopAllAudio();
   $("btnAuto").textContent = "▶️ 自动连播";
 }
-function playCurAuto(){
-  if(!autoPlay.on) return;
+function playCurAuto(gen){
+  if(!autoPlay.on || gen !== autoPlay.gen) return;   /* 旧代际的回调直接丢弃 */
   var it = viewWords[cardIdx];
   if(!it){ stopAutoPlay(); return; }
   speakThen(it.w, function(){              /* ① 英文单词 */
-    if(!autoPlay.on) return;
+    if(!autoPlay.on || gen !== autoPlay.gen) return;
     autoPlay.timer = setTimeout(function(){
+      if(!autoPlay.on || gen !== autoPlay.gen) return;
       var zh = autoTransOf(it);
       if(zh){
         speakThen(zh, function(){          /* ② 中文释义 */
-          if(!autoPlay.on) return;
+          if(!autoPlay.on || gen !== autoPlay.gen) return;
           autoPlay.timer = setTimeout(function(){  /* ③ 停顿后下一个 */
+            if(!autoPlay.on || gen !== autoPlay.gen) return;
             nextCard(1);
-            playCurAuto();
+            playCurAuto(gen);
           }, 900);
         });
       }else{
-        autoPlay.timer = setTimeout(function(){ nextCard(1); playCurAuto(); }, 900);
+        autoPlay.timer = setTimeout(function(){ if(autoPlay.on && gen === autoPlay.gen){ nextCard(1); playCurAuto(gen); } }, 900);
       }
     }, 500);
   });
