@@ -51,6 +51,16 @@
   .cat-sel{width:100%;margin-bottom:12px;padding:9px;border-radius:9px;border:1px solid var(--border);font-size:14px;background:#fff}
   .search-in{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin-bottom:12px}
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+  .note-editor{background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:12px;margin-top:12px}
+  .note-editor textarea{width:100%;margin-top:8px}
+  .note-word{width:100%}
+  .note-editor textarea,#noteSearch{padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:16px;font-family:inherit;box-sizing:border-box}
+  .note-list{display:grid;gap:10px;margin-top:12px;max-height:60vh;overflow:auto}
+  .note-item{background:var(--card);border:1px solid #e5e7f0;border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(30,30,60,.06)}
+  .note-item .note-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap}
+  .note-item .note-w{color:var(--primary);font-weight:600;cursor:pointer}
+  .note-item .note-body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.6}
+  .note-item .note-ops{margin-top:8px;display:flex;gap:8px}
 </style>
 <style>
   .q-progress{height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:14px}
@@ -104,6 +114,7 @@
     <button data-tab="trans"><span class="ico">🌐</span>翻译</button>
     <button data-tab="manage"><span class="ico">📥</span>词库</button>
     <button data-tab="stats"><span class="ico">📊</span>统计</button>
+    <button data-tab="notes"><span class="ico">📝</span>笔记</button>
   </nav>
 </header>
 <div class="container">
@@ -131,6 +142,7 @@
         <button id="btnKnow" class="btn ok">✓ 认识</button>
         <button id="btnUnknow" class="btn no">✗ 不认识</button>
         <button id="btnShuffle" class="btn gray">🔀 打乱</button>
+        <button id="noteFromCard" class="btn gray" title="为当前单词记一条笔记">📝 记笔记</button>
       </div>
       <div class="card-nav">
         <button id="btnPrev" class="btn gray">← 上一个</button>
@@ -252,6 +264,25 @@ w=单词（或整句）、ph=音标、tr=释义列表(p 词性,c 中文)、ex=�
       <button id="resetBtn" class="btn gray">清空当前词库进度</button>
     </div>
     <div class="hint">进度保存在本机浏览器（localStorage），更换设备不会自动同步。</div>
+  </section>
+
+  <section id="sec-notes">
+    <h2>📝 学习笔记</h2>
+    <div class="note-editor">
+      <input id="noteWord" class="note-word" placeholder="关联单词（可选，如 refuse）">
+      <textarea id="noteText" rows="4" placeholder="写下你的学习心得、易混淆点、例句、语法笔记……"></textarea>
+      <div class="card-actions" style="margin-top:10px;justify-content:flex-start">
+        <button id="noteSave" class="btn">💾 保存笔记</button>
+        <button id="noteCancel" class="btn gray" style="display:none">取消编辑</button>
+      </div>
+    </div>
+    <input id="noteSearch" type="search" placeholder="🔍 搜索笔记内容或关联单词…" style="width:100%;margin-top:14px">
+    <div id="noteList" class="note-list"></div>
+    <div class="card-actions" style="margin-top:14px;justify-content:flex-start">
+      <button id="noteExport" class="btn gray">📤 导出笔记（txt）</button>
+      <button id="noteClear" class="btn gray">🗑 清空全部笔记</button>
+    </div>
+    <div class="hint">笔记保存在本机浏览器（localStorage），更换设备不会自动同步。建议定期导出备份。</div>
   </section>
 </div>
 <div id="toast" class="toast"></div>
@@ -414,6 +445,100 @@ function switchTab(tab){
   document.querySelectorAll("section").forEach(function(s){ s.classList.toggle("active", s.id === "sec-" + tab); });
   if(tab === "stats") renderStats();
   if(tab === "manage") renderManage();
+  if(tab === "notes") renderNotes();
+}
+
+/* ================= 学习笔记 ================= */
+var NOTES_KEY = "el_notes";
+var noteEditId = null;   // 当前正在编辑的笔记 id（null = 新增）
+function getNotes(){ return LSget(NOTES_KEY, []); }
+function saveNotes(list){ LSset(NOTES_KEY, list); }
+function fmtNoteDate(ts){
+  var d = new Date(ts);
+  function p(n){ return n < 10 ? "0" + n : "" + n; }
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function renderNotes(){
+  var list = getNotes();
+  var kw = ($("noteSearch").value || "").trim().toLowerCase();
+  var html = "";
+  list.sort(function(a,b){ return b.date - a.date; }).forEach(function(n){
+    if(kw && (n.text + " " + (n.word||"")).toLowerCase().indexOf(kw) < 0) return;
+    html += '<div class="note-item" data-id="' + esc(n.id) + '">'
+      + '<div class="note-meta">'
+      + (n.word ? '<span class="note-w" data-w="' + esc(n.word) + '">🔖 ' + esc(n.word) + '</span>' : "")
+      + '<span>' + fmtNoteDate(n.date) + '</span>'
+      + '</div>'
+      + '<div class="note-body">' + esc(n.text) + '</div>'
+      + '<div class="note-ops">'
+      + '<button class="btn gray note-edit" style="padding:6px 12px;font-size:13px">✏️ 编辑</button>'
+      + '<button class="btn gray note-del" style="padding:6px 12px;font-size:13px">🗑 删除</button>'
+      + '</div></div>';
+  });
+  $("noteList").innerHTML = html || (kw ? '<div class="hint">没有匹配的笔记</div>' : '<div class="hint">还没有笔记，写下第一条吧 ✍️</div>');
+}
+function notePrefill(word){
+  noteEditId = null;
+  $("noteWord").value = word || "";
+  $("noteText").value = "";
+  $("noteSave").textContent = "💾 保存笔记";
+  $("noteCancel").style.display = "none";
+  switchTab("notes");
+  $("noteText").focus();
+}
+function saveNote(){
+  var text = ($("noteText").value || "").trim();
+  var word = ($("noteWord").value || "").trim();
+  if(!text && !word){ toast("请先写下笔记内容"); return; }
+  if(!text){ toast("笔记内容不能为空"); return; }
+  var list = getNotes();
+  if(noteEditId != null){
+    var found = false;
+    list.forEach(function(n){ if(n.id === noteEditId){ n.text = text; n.word = word; n.date = Date.now(); found = true; } });
+    if(!found) list.push({ id: noteEditId, word: word, text: text, date: Date.now() });
+    toast("笔记已更新 ✓");
+  }else{
+    list.push({ id: Date.now() + "" + Math.floor(Math.random()*1000), word: word, text: text, date: Date.now() });
+    toast("笔记已保存 ✓");
+  }
+  saveNotes(list);
+  noteEditId = null;
+  $("noteText").value = ""; $("noteWord").value = "";
+  $("noteSave").textContent = "💾 保存笔记";
+  $("noteCancel").style.display = "none";
+  renderNotes();
+}
+function startEditNote(id){
+  var n = getNotes().filter(function(x){ return x.id === id; })[0];
+  if(!n) return;
+  noteEditId = id;
+  $("noteWord").value = n.word || "";
+  $("noteText").value = n.text;
+  $("noteSave").textContent = "💾 更新笔记";
+  $("noteCancel").style.display = "";
+  $("noteText").focus();
+}
+function delNote(id){
+  if(!confirm("确定删除这条笔记吗？")) return;
+  saveNotes(getNotes().filter(function(x){ return x.id !== id; }));
+  if(noteEditId === id){ noteEditId = null; $("noteText").value = ""; $("noteWord").value = ""; $("noteSave").textContent = "💾 保存笔记"; $("noteCancel").style.display = "none"; }
+  renderNotes();
+  toast("已删除 🗑");
+}
+function exportNotes(){
+  var list = getNotes();
+  if(!list.length){ toast("还没有笔记可导出"); return; }
+  list.sort(function(a,b){ return a.date - b.date; });
+  var txt = "===== 英语学习笔记 =====\r\n\r\n";
+  list.forEach(function(n){
+    txt += "[" + fmtNoteDate(n.date) + "]" + (n.word ? " " + n.word : "") + "\r\n" + n.text + "\r\n\r\n";
+  });
+  var blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "english-notes-" + fmtNoteDate(Date.now()).slice(0,10).replace(/-/g,"") + ".txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
 }
 
 /* ================= 单词卡片 ================= */
@@ -810,6 +935,26 @@ function init(){
   $("btnNext").addEventListener("click", function(){ nextCard(1); });
   $("cardSearch").addEventListener("input", refreshView);
   $("catSel").addEventListener("change", refreshView);
+  $("noteFromCard").addEventListener("click", function(){ notePrefill($("cWord").textContent); });
+  $("noteSave").addEventListener("click", saveNote);
+  $("noteCancel").addEventListener("click", function(){
+    noteEditId = null; $("noteText").value = ""; $("noteWord").value = "";
+    $("noteSave").textContent = "💾 保存笔记"; $("noteCancel").style.display = "none";
+  });
+  $("noteSearch").addEventListener("input", renderNotes);
+  $("noteList").addEventListener("click", function(e){
+    var item = e.target.closest ? e.target.closest(".note-item") : null;
+    if(!item) return;
+    var id = item.getAttribute("data-id");
+    if(e.target.closest(".note-edit")) startEditNote(id);
+    else if(e.target.closest(".note-del")) delNote(id);
+    else if(e.target.closest(".note-w")){ var w = e.target.closest(".note-w").getAttribute("data-w"); if(w) speak(w); }
+  });
+  $("noteExport").addEventListener("click", exportNotes);
+  $("noteClear").addEventListener("click", function(){
+    if(!confirm("确定清空全部笔记吗？此操作不可恢复！")) return;
+    saveNotes([]); renderNotes(); toast("已清空全部笔记 🗑");
+  });
 
   $("qBegin").addEventListener("click", function(){
     startQuiz(WORDS, parseInt($("qCount").value, 10), $("qType").value);
