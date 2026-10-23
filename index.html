@@ -62,6 +62,25 @@
   .note-item .note-w{color:var(--primary);font-weight:600;cursor:pointer}
   .note-item .note-body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.6}
   .note-item .note-ops{margin-top:8px;display:flex;gap:8px}
+  /* 场景对话 */
+  .dlg-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+  .dlg-chips button{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--text)}
+  .dlg-chips button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .dlg-list{display:grid;gap:10px;margin-top:4px}
+  .dlg-item{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:13px 15px;cursor:pointer}
+  .dlg-item .di-name{font-weight:700;font-size:15px}
+  .dlg-item .di-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .dl-line{display:flex;gap:8px;align-items:flex-start;margin-top:12px}
+  .dl-line.whoB{flex-direction:row-reverse}
+  .dl-spe{border:none;background:#eef1ff;color:var(--primary);border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;flex:none;margin-top:3px}
+  .dl-b{max-width:76%;background:#fff;border:1px solid var(--border);border-radius:12px;padding:9px 12px;cursor:pointer;word-break:break-word}
+  .whoA .dl-b{background:#f4f6ff}
+  .whoB .dl-b{background:#f0fbf4}
+  .dl-line.cur .dl-b{border-color:var(--primary);box-shadow:0 0 0 2px rgba(74,108,247,.25)}
+  .dl-en{font-size:15px;line-height:1.55}
+  .dl-en.mask{letter-spacing:2px;color:#b6bccb;font-size:13px}
+  .dl-cn{font-size:13px;color:var(--muted);margin-top:3px;display:none}
+  .dl-cn.show{display:block}
 </style>
 <style>
   .q-progress{height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:14px}
@@ -111,6 +130,7 @@
   </div>
   <nav id="tabs">
     <button data-tab="cards" class="active"><span class="ico">🎴</span>卡片</button>
+    <button data-tab="dlg"><span class="ico">💬</span>对话</button>
     <button data-tab="quiz"><span class="ico">✏️</span>测验</button>
     <button data-tab="trans"><span class="ico">🌐</span>翻译</button>
     <button data-tab="manage"><span class="ico">📥</span>词库</button>
@@ -167,6 +187,26 @@
       </div>
       <div class="hint">💡 更省事的方式：用本地服务器打开（在 english-learning 目录运行
         <code>python3 -m http.server 8000</code> 后访问 localhost:8000），或部署到 GitHub Pages（见 README），则无需手动选择。</div>
+    </div>
+  </section>
+
+  <section id="sec-dlg">
+    <div id="dlgHome">
+      <h2>💬 场景对话 · 听力练习</h2>
+      <div id="dlgChips" class="dlg-chips"></div>
+      <div id="dlgList" class="dlg-list"></div>
+      <div class="hint">点击对话进入收听；推荐流程：先 🙈 盲听整篇 → 再点气泡核对原文和中文。</div>
+    </div>
+    <div id="dlgView" style="display:none">
+      <div class="card-actions" style="justify-content:flex-start">
+        <button id="dlgBack" class="btn gray">← 列表</button>
+        <button id="dlgPlay" class="btn">▶️ 连播整篇</button>
+        <button id="dlgBlind" class="btn gray">🙈 盲听</button>
+        <button id="dlgShowCn" class="btn gray">🇨🇳 中文</button>
+      </div>
+      <h2 id="dlgTitle" style="margin-top:14px"></h2>
+      <div id="dlgBubbles"></div>
+      <div class="hint">🔊 朗读单句 · 点击气泡核对原文/中文 · A/B 说话人使用不同口音，听声即可分辨</div>
     </div>
   </section>
 
@@ -256,6 +296,8 @@ w=单词（或整句）、ph=音标、tr=释义列表(p 词性,c 中文)、ex=�
       <div class="stat-cell"><div id="stKnown" class="num">0</div><div class="lbl">已标记认识</div></div>
       <div class="stat-cell"><div id="stWrong" class="num">0</div><div class="lbl">错题本</div></div>
       <div class="stat-cell"><div id="stAcc" class="num">0%</div><div class="lbl">测验正确率</div></div>
+      <div class="stat-cell"><div id="stDlgN" class="num">0</div><div class="lbl">已听对话篇数</div></div>
+      <div class="stat-cell"><div id="stDlgT" class="num">0</div><div class="lbl">对话累计收听</div></div>
     </div>
     <details>
       <summary>❌ 错题本（<span id="wrongCount">0</span> 词）</summary>
@@ -463,7 +505,9 @@ function switchTab(tab){
   if(tab === "stats") renderStats();
   if(tab === "manage") renderManage();
   if(tab === "notes") renderNotes();
+  if(tab === "dlg") renderDlgHome();
   if(tab !== "cards" && autoPlay.on) stopAutoPlay();   /* 离开卡片页时停止连播 */
+  if(tab !== "dlg" && dlgAuto.on) stopDlgPlay();       /* 离开对话页时停止对话连播 */
 }
 
 /* ================= 学习笔记 ================= */
@@ -545,10 +589,10 @@ function delNote(id){
 }
 /* ---------- 备份 / 恢复（跨设备同步：笔记 + 自定义词库 + 进度） ---------- */
 function buildBackup(){
-  return JSON.stringify({ type: "english-backup", version: 2, notes: getNotes(), userBooks: getUserBooks(), progress: getProgress() });
+  return JSON.stringify({ type: "english-backup", version: 3, notes: getNotes(), userBooks: getUserBooks(), progress: getProgress(), dlgProgress: getDlgProg() });
 }
 function copyNotesBackup(){
-  if(!getNotes().length && !Object.keys(getUserBooks()).length){ toast("没有可备份的数据"); return; }
+  if(!getNotes().length && !Object.keys(getUserBooks()).length && !Object.keys(getDlgProg()).length){ toast("没有可备份的数据"); return; }
   var data = buildBackup();
   function fallback(){
     var ta = $("notePaste");
@@ -563,7 +607,7 @@ function copyNotesBackup(){
   }else fallback();
 }
 function downloadNotesBackup(){
-  if(!getNotes().length && !Object.keys(getUserBooks()).length){ toast("没有可备份的数据"); return; }
+  if(!getNotes().length && !Object.keys(getUserBooks()).length && !Object.keys(getDlgProg()).length){ toast("没有可备份的数据"); return; }
   var blob = new Blob([buildBackup()], { type: "application/json" });
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -575,8 +619,8 @@ function downloadNotesBackup(){
 function importNotesData(str){
   var obj = null;
   try{ obj = JSON.parse(str); }catch(e){}
-  var incomingNotes = null, backupBooks = null, backupProg = null;
-  if(obj && Array.isArray(obj.notes)){ incomingNotes = obj.notes; backupBooks = obj.userBooks; backupProg = obj.progress; }  // 全量备份
+  var incomingNotes = null, backupBooks = null, backupProg = null, backupDlg = null;
+  if(obj && Array.isArray(obj.notes)){ incomingNotes = obj.notes; backupBooks = obj.userBooks; backupProg = obj.progress; backupDlg = obj.dlgProgress; }  // 全量备份
   else if(Array.isArray(obj)) incomingNotes = obj;                        // 直接是笔记数组
   if(!incomingNotes && !backupBooks){ toast("数据格式不正确，无法导入"); return; }
   /* 规范化笔记条目 */
@@ -593,8 +637,11 @@ function importNotesData(str){
   incomingNotes.forEach(function(n){ if(!noteIds[n.id]) newNotes++; });
   var curBooks = getUserBooks();
   var curProg = getProgress();
+  var curDlg = getDlgProg();
   if(backupBooks && typeof backupBooks === "object") Object.keys(backupBooks).forEach(function(k){ if(!curBooks[k]) newBooks++; });
   if(backupProg && typeof backupProg === "object") Object.keys(backupProg).forEach(function(k){ if(!curProg[k]) newProg++; });
+  var newDlg = 0;
+  if(backupDlg && typeof backupDlg === "object") Object.keys(backupDlg).forEach(function(k){ if(!curDlg[k]) newDlg++; });
   var mode = confirm((isFull ? "备份包含：笔记 " + incomingNotes.length + " 条、自定义词库 " + (backupBooks ? Object.keys(backupBooks).length : 0) + " 本、进度数据 " + (backupProg ? Object.keys(backupProg).length : 0) + " 项" : "备份包含笔记 " + incomingNotes.length + " 条") + "。\n将新增：笔记 " + newNotes + " 条、词库 " + newBooks + " 本、进度 " + newProg + " 项。\n\n确定 = 合并（保留本机已有数据，仅追加新的）\n取消 = 完全覆盖（本机数据被备份替换）");
   if(mode){
     /* 合并：笔记按 id 去重追加 */
@@ -602,15 +649,18 @@ function importNotesData(str){
     /* 合并：词库/进度只添加本机没有的 key */
     if(backupBooks && typeof backupBooks === "object") Object.keys(backupBooks).forEach(function(k){ if(!curBooks[k]) curBooks[k] = backupBooks[k]; });
     if(backupProg && typeof backupProg === "object") Object.keys(backupProg).forEach(function(k){ if(!curProg[k]) curProg[k] = backupProg[k]; });
-    toast("已合并导入：笔记 +" + newNotes + "、词库 +" + newBooks + "、进度 +" + newProg + " ✓");
+    if(backupDlg && typeof backupDlg === "object") Object.keys(backupDlg).forEach(function(k){ if(!curDlg[k]) curDlg[k] = backupDlg[k]; });
+    toast("已合并导入：笔记 +" + newNotes + "、词库 +" + newBooks + "、进度 +" + newProg + "、对话进度 +" + newDlg + " ✓");
   }else{
     saveNotes(incomingNotes);
     if(backupBooks && typeof backupBooks === "object") curBooks = backupBooks;
     if(backupProg && typeof backupProg === "object") curProg = backupProg;
+    if(backupDlg && typeof backupDlg === "object") curDlg = backupDlg;
     toast("已覆盖导入全部备份数据 ✓");
   }
   setUserBooks(curBooks);
   setProgress(curProg);
+  saveDlgProg(curDlg);
   renderNotes();
   refreshBookSel();
 }
@@ -630,6 +680,317 @@ function exportNotes(){
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
 }
 
+/* ================= 场景对话（听力练习） ================= */
+var DLG_PROG_KEY = "el_dlgProgress";
+var DLG_SCENES = { work:"💼 工作", life:"🏠 生活", study:"📖 学习", travel:"✈️ 旅游", trip:"🚗 出行", biz:"🤝 商务", food:"🍽️ 就餐" };
+var dlgScene = "", dlgBlind = false, dlgShowCn = false;
+var dlgRevealed = {};                    /* 盲听模式下已核对原文的句子 */
+var dlgAuto = { on:false, gen:0, timer:null };   /* 对话连播（gen 代际保护，防止旧回调复活） */
+var curDlg = null;
+function getDlgProg(){ return LSget(DLG_PROG_KEY, {}); }
+function saveDlgProg(p){ LSset(DLG_PROG_KEY, p); }
+var BUILTIN_DIALOGUES = [
+{ id:"work_intro", scene:"work", title:"Meeting & Self-introduction 会议自我介绍", lines:[
+  {w:"A",en:"Good morning, everyone. Thanks for joining today's meeting.",cn:"大家早上好，感谢参加今天的会议。"},
+  {w:"B",en:"Good morning. Shall we start with the new members?",cn:"早上好。我们先从新成员介绍开始吧？"},
+  {w:"A",en:"Sure. Hi, I'm Alex from the marketing department.",cn:"好的。大家好，我是市场部的亚历克斯。"},
+  {w:"B",en:"Nice to meet you, Alex. I'm Sarah, the project manager.",cn:"很高兴认识你，亚历克斯。我是项目经理莎拉。"},
+  {w:"A",en:"Nice to meet you too, Sarah. I've heard a lot about your team.",cn:"我也很高兴认识你，莎拉。久闻你们团队的大名。"},
+  {w:"B",en:"All good things, I hope. Could you briefly introduce your role?",cn:"希望都是好话。能简单介绍一下你的职责吗？"},
+  {w:"A",en:"Of course. I'm responsible for social media and online campaigns.",cn:"当然。我负责社交媒体和线上推广活动。"},
+  {w:"B",en:"Great. How long have you been with the company?",cn:"不错。你在这家公司多久了？"},
+  {w:"A",en:"About two years. I joined right after graduation.",cn:"大约两年，我一毕业就加入了。"},
+  {w:"B",en:"Wonderful. Feel free to reach out if you need anything.",cn:"太好了。有任何需要随时找我。"},
+  {w:"A",en:"Thank you. I'm looking forward to working with you all.",cn:"谢谢，期待和大家一起共事。"},
+  {w:"B",en:"Let's move on to today's main topic.",cn:"我们进入今天的主要议题吧。"}
+]},
+{ id:"work_update", scene:"work", title:"Project Progress Update 项目进度汇报", lines:[
+  {w:"A",en:"Let's go over the progress of the new website. How are things going?",cn:"我们来过一下新网站的进度。进展如何？"},
+  {w:"B",en:"We've finished the design, and the main pages are almost done.",cn:"设计已经完成，主要页面也基本做完了。"},
+  {w:"A",en:"Sounds good. Are we still on schedule?",cn:"听起来不错。我们还在计划进度内吗？"},
+  {w:"B",en:"Yes, but the testing phase may take a bit longer than planned.",cn:"是的，但测试阶段可能比计划多花一点时间。"},
+  {w:"A",en:"How much longer do you expect?",cn:"你预计会多花多久？"},
+  {w:"B",en:"About three to five extra days, mainly for mobile compatibility.",cn:"大概多三到五天，主要是移动端兼容问题。"},
+  {w:"A",en:"That's acceptable. Have we heard anything from the client?",cn:"可以接受。客户那边有什么反馈吗？"},
+  {w:"B",en:"They sent feedback yesterday. They want a darker color theme.",cn:"他们昨天发了反馈，想要更深的配色主题。"},
+  {w:"A",en:"Did they say why?",cn:"他们说了原因吗？"},
+  {w:"B",en:"They think dark mode is easier on the eyes at night.",cn:"他们觉得深色模式晚上看更护眼。"},
+  {w:"A",en:"Fair point. Please send them a sample first before we change everything.",cn:"有道理。先给他们发个样例，别急着全改。"},
+  {w:"B",en:"Will do. I'll prepare two options and ask them to choose.",cn:"好的，我准备两个方案让他们选。"},
+  {w:"A",en:"Perfect. Let's meet again next Monday to check the results.",cn:"很好。下周一我们再碰一下看结果。"}
+]},
+{ id:"life_rent", scene:"life", title:"Renting an Apartment 租房看房", lines:[
+  {w:"A",en:"Good afternoon. How can I help you today?",cn:"下午好，有什么可以帮您的？"},
+  {w:"B",en:"Hi, I'm looking for a one-bedroom apartment near the subway.",cn:"你好，我想找一套地铁站附近的一居室。"},
+  {w:"A",en:"What's your budget, if you don't mind me asking?",cn:"方便问一下您的预算是多少吗？"},
+  {w:"B",en:"Around three thousand yuan a month, including utilities if possible.",cn:"每月三千左右，最好含水电网费。"},
+  {w:"A",en:"I have two options in that range, both ten minutes from the station.",cn:"这个价位有两套，都离地铁站十分钟。"},
+  {w:"B",en:"Are they furnished?",cn:"带家具吗？"},
+  {w:"A",en:"One is fully furnished; the other has just the basics.",cn:"一套是全配，另一套只有基础家具。"},
+  {w:"B",en:"I'd prefer the furnished one. Does it have a washing machine?",cn:"我更想要全配那套。有洗衣机吗？"},
+  {w:"A",en:"Yes, and the rent includes internet and water.",cn:"有，而且房租含网络和水费。"},
+  {w:"B",en:"Great. When can I view it?",cn:"太好了。什么时候能看房？"},
+  {w:"A",en:"How about tomorrow at ten in the morning?",cn:"明天上午十点怎么样？"},
+  {w:"B",en:"Tomorrow works. Is there a deposit?",cn:"明天可以。需要押金吗？"},
+  {w:"A",en:"One month's rent as deposit, refundable when you move out.",cn:"押一付一，退房时押金可退。"},
+  {w:"B",en:"Perfect. See you tomorrow then.",cn:"太好了，那明天见。"}
+]},
+{ id:"life_doctor", scene:"life", title:"At the Doctor's 生病就诊", lines:[
+  {w:"A",en:"Good morning. What seems to be the problem?",cn:"早上好，您哪里不舒服？"},
+  {w:"B",en:"I've had a headache and a sore throat since yesterday.",cn:"我从昨天开始头疼、嗓子疼。"},
+  {w:"A",en:"Do you have a fever as well?",cn:"也发烧吗？"},
+  {w:"B",en:"A slight one, around thirty-seven point five last night.",cn:"有一点低烧，昨晚大概37度5。"},
+  {w:"A",en:"Any coughing or difficulty breathing?",cn:"有咳嗽或呼吸困难吗？"},
+  {w:"B",en:"A little coughing, but breathing is fine.",cn:"有点咳嗽，呼吸没问题。"},
+  {w:"A",en:"It looks like a common cold. I'll prescribe some medicine.",cn:"看起来是普通感冒，我给你开点药。"},
+  {w:"B",en:"How often should I take it?",cn:"这药怎么吃？"},
+  {w:"A",en:"Twice a day after meals, for three days.",cn:"一天两次，饭后服用，吃三天。"},
+  {w:"B",en:"Should I come back if it doesn't get better?",cn:"如果不见好转需要再来吗？"},
+  {w:"A",en:"Yes, if you still have a fever in three days, come see me again.",cn:"是的，三天后还发烧就再来复诊。"},
+  {w:"B",en:"Thank you, doctor. Anything else I should do?",cn:"谢谢医生。还有什么要注意的吗？"},
+  {w:"A",en:"Drink plenty of warm water and get enough rest.",cn:"多喝温水，好好休息。"}
+]},
+{ id:"study_essay", scene:"study", title:"Discussing an Essay with the Professor 与教授讨论论文", lines:[
+  {w:"A",en:"Come in, please. Ah, Kevin, have a seat.",cn:"请进。啊，凯文，请坐。"},
+  {w:"B",en:"Thank you, Professor Lee. Do you have a minute to look at my essay outline?",cn:"谢谢李教授。能抽几分钟看看我的论文提纲吗？"},
+  {w:"A",en:"Of course. Let me see... Your topic is interesting, but the scope is too broad.",cn:"当然。我看看……你的选题很有意思，但范围太宽了。"},
+  {w:"B",en:"I see. Should I focus on one specific period instead?",cn:"明白了。我应该聚焦到一个特定时期吗？"},
+  {w:"A",en:"Exactly. Narrow it down to the last ten years, for example.",cn:"正是。比如缩小到最近十年。"},
+  {w:"B",en:"That makes sense. What about my sources?",cn:"有道理。那我的参考资料呢？"},
+  {w:"A",en:"You rely too much on websites. Add at least five academic papers.",cn:"你太依赖网页资料了，至少加五篇学术论文。"},
+  {w:"B",en:"I'll search the library database this afternoon.",cn:"我下午就去图书馆数据库检索。"},
+  {w:"A",en:"Good. Also, remember to cite everything properly, or it may count as plagiarism.",cn:"好。另外，引用一定要规范，否则可能算作抄袭。"},
+  {w:"B",en:"I didn't realize that. Thanks for pointing it out.",cn:"我之前没意识到，多亏您提醒。"},
+  {w:"A",en:"One more thing — your deadline is next Friday, not the week after.",cn:"还有一件事——截止日期是下周五，不是下下周五。"},
+  {w:"B",en:"Oh no, I'd better get started then. Thank you so much for your help!",cn:"糟糕，那我得赶紧开始了。非常感谢您的帮助！"}
+]},
+{ id:"study_exam", scene:"study", title:"Preparing for the Final Exam 备战期末考试", lines:[
+  {w:"A",en:"The final is only two weeks away. Have you started reviewing?",cn:"离期末考试只有两周了。你开始复习了吗？"},
+  {w:"B",en:"To be honest, I've barely opened the book.",cn:"说实话，我书都还没怎么翻开。"},
+  {w:"A",en:"We'd better make a study plan before it's too late.",cn:"趁还来得及，我们最好制定个复习计划。"},
+  {w:"B",en:"Good idea. Which subject worries you the most?",cn:"好主意。你最担心哪一科？"},
+  {w:"A",en:"Definitely economics. The formulas are killing me.",cn:"绝对是经济学，那些公式要把我逼疯了。"},
+  {w:"B",en:"I'm okay with formulas, but I always fail the listening part in English.",cn:"公式我还行，但英语听力老是丢分。"},
+  {w:"A",en:"Why don't we help each other? I can drill English listening with you.",cn:"不如我们互相帮忙？我可以陪你练英语听力。"},
+  {w:"B",en:"And I can explain the economics formulas to you.",cn:"那我给你讲经济学公式。"},
+  {w:"A",en:"Deal. How about studying together in the library after class?",cn:"成交。放学后一起在图书馆自习怎么样？"},
+  {w:"B",en:"Sure. Let's meet at six and review for two hours.",cn:"好，六点见，复习两小时。"},
+  {w:"A",en:"Two hours sounds reasonable. I'll bring my notes from the lectures.",cn:"两小时挺合理。我会带上课堂笔记。"},
+  {w:"B",en:"And I'll bring past exam papers — they say half the questions repeat.",cn:"我带往年真题——据说一半的题会重复出现。"},
+  {w:"A",en:"Great. See you at six then. Don't be late this time!",cn:"太好了，六点见。这次可别迟到了！"}
+]},
+{ id:"travel_hotel", scene:"travel", title:"Checking in at a Hotel 酒店入住", lines:[
+  {w:"A",en:"Good evening. Welcome to the Sunshine Hotel. Do you have a reservation?",cn:"晚上好，欢迎光临阳光酒店。您有预订吗？"},
+  {w:"B",en:"Yes, under the name Wang. I booked a double room for three nights.",cn:"有，预订人姓王。我订了一间双床房，住三晚。"},
+  {w:"A",en:"Let me check... Yes, a double room from tonight to Friday.",cn:"我查一下……有的，双床房，今晚到周五。"},
+  {w:"B",en:"That's right. Is breakfast included?",cn:"没错。含早餐吗？"},
+  {w:"A",en:"Yes, breakfast is served from seven to ten on the second floor.",cn:"含的，早餐七点到十点，在二楼餐厅。"},
+  {w:"B",en:"Great. Is Wi-Fi available in the rooms?",cn:"好的。房间里有Wi-Fi吗？"},
+  {w:"A",en:"Of course. The password is on the key card holder.",cn:"当然有，密码在房卡套上。"},
+  {w:"B",en:"And could you tell me what time check-out is?",cn:"请问退房时间是几点？"},
+  {w:"A",en:"Check-out is at noon. Late check-out costs fifty yuan per hour.",cn:"中午十二点退房。延迟退房每小时加收五十元。"},
+  {w:"B",en:"I see. One more thing — does the room have a safe?",cn:"明白了。再问一下——房间里有保险箱吗？"},
+  {w:"A",en:"Yes, it's in the wardrobe. Here is your key card, room 808.",cn:"有，在衣柜里。这是您的房卡，808房。"},
+  {w:"B",en:"Thanks. Which floor is it on, and where are the elevators?",cn:"谢谢。在几层？电梯在哪里？"},
+  {w:"A",en:"It's on the eighth floor. Turn left after the lobby and you'll see them.",cn:"在八层。出了大堂左转就能看到电梯。"},
+  {w:"B",en:"Perfect. Thank you for your help.",cn:"太好了，谢谢您的帮助。"}
+]},
+{ id:"travel_directions", scene:"travel", title:"Asking for Directions 问路", lines:[
+  {w:"A",en:"Excuse me, could you help me for a second?",cn:"打扰一下，能耽误您一小会儿吗？"},
+  {w:"B",en:"Sure, what do you need?",cn:"当然，怎么了？"},
+  {w:"A",en:"I'm trying to find the City Museum. Am I going the right way?",cn:"我想去城市博物馆，方向对吗？"},
+  {w:"B",en:"Not really. You need to go back to the main street first.",cn:"不太对。你得先回到主街上。"},
+  {w:"A",en:"The one with the big supermarket?",cn:"是有大超市的那条吗？"},
+  {w:"B",en:"Exactly. Turn left there and walk straight for about ten minutes.",cn:"对。在那儿左转，直走大概十分钟。"},
+  {w:"A",en:"Ten minutes walking — got it. Will I pass a bridge?",cn:"步行十分钟，明白了。会经过一座桥吗？"},
+  {w:"B",en:"Yes, cross the bridge and the museum is the tall grey building on your right.",cn:"会。过了桥，右边那栋灰色高楼就是博物馆。"},
+  {w:"A",en:"Is there a bus that goes there directly?",cn:"有直达的公交车吗？"},
+  {w:"B",en:"Bus number twelve stops right in front of the museum.",cn:"12路公交就停在博物馆门口。"},
+  {w:"A",en:"Where's the nearest bus stop, please?",cn:"请问最近的公交站在哪儿？"},
+  {w:"B",en:"It's just around the corner, next to the bakery.",cn:"拐角就是，面包店旁边。"},
+  {w:"A",en:"You're a lifesaver. Thank you so much!",cn:"您真是帮了大忙，太感谢了！"},
+  {w:"B",en:"No problem. Enjoy your visit!",cn:"不客气，祝你参观愉快！"}
+]},
+{ id:"trip_taxi", scene:"trip", title:"Taking a Taxi 打车出行", lines:[
+  {w:"A",en:"Where to, madam?",cn:"女士，去哪儿？"},
+  {w:"B",en:"The central train station, please. How long will it take?",cn:"中央火车站，谢谢。大概要多久？"},
+  {w:"A",en:"About twenty minutes if the traffic isn't too bad.",cn:"路况不太糟的话，大概二十分钟。"},
+  {w:"B",en:"I have a train at half past ten. Will I make it?",cn:"我十点半的火车，来得及吗？"},
+  {w:"A",en:"It's nine forty now, so we should be fine.",cn:"现在九点四十，应该没问题。"},
+  {w:"B",en:"Great. Could you take the route with fewer traffic lights?",cn:"那好。能走红绿灯少一点的路吗？"},
+  {w:"A",en:"No problem, I know a shortcut through Riverside Road.",cn:"没问题，我知道走滨河路有条近道。"},
+  {w:"B",en:"That would be great — last time I got stuck for half an hour.",cn:"那太好了——上次我堵了半个小时。"},
+  {w:"A",en:"Don't worry. We'll avoid the rush-hour jam this time.",cn:"放心，这次咱们避开高峰拥堵。"},
+  {w:"B",en:"By the way, how much will the fare be roughly?",cn:"顺便问下，车费大概多少？"},
+  {w:"A",en:"Around forty yuan, plus one yuan for the fuel charge.",cn:"四十块左右，加一块钱燃油费。"},
+  {w:"B",en:"OK, that's fine. Please let me off at the south entrance.",cn:"可以。请把我放在南入口。"},
+  {w:"A",en:"South entrance, no problem. Here we are — twenty-two minutes on the dot.",cn:"南入口，没问题。到了——正好二十二分钟。"},
+  {w:"B",en:"Wonderful! Here's fifty yuan. Keep the change.",cn:"太棒了！这是五十块，不用找了。"}
+]},
+{ id:"trip_train", scene:"trip", title:"Buying a Train Ticket 购买火车票", lines:[
+  {w:"A",en:"Good morning. How can I help you?",cn:"早上好，请问需要什么服务？"},
+  {w:"B",en:"Hi, I'd like a high-speed ticket to Shanghai for this Saturday.",cn:"你好，我想买一张本周六去上海的高铁票。"},
+  {w:"A",en:"There are trains at 8:30, 10:15 and 2:30 in the afternoon. Which one?",cn:"有8:30、10:15和下午2:30的车次，您要哪一班？"},
+  {w:"B",en:"The 10:15 one, please. How long is the journey?",cn:"10:15那班。行程要多久？"},
+  {w:"A",en:"About four and a half hours, arriving around 3 pm.",cn:"大概四个半小时，下午三点左右到。"},
+  {w:"B",en:"OK. A second-class seat, please. How much is it?",cn:"好的，一张二等座。多少钱？"},
+  {w:"A",en:"Five hundred and fifty yuan. Do you want a window or aisle seat?",cn:"五百五十元。您要靠窗还是靠过道？"},
+  {w:"B",en:"Window, please. And can I pay by card?",cn:"靠窗。可以刷卡吗？"},
+  {w:"A",en:"Sure. Insert your card here, please.",cn:"可以，请在这里插卡。"},
+  {w:"B",en:"Done. Do I need to print the ticket?",cn:"好了。需要打印纸质票吗？"},
+  {w:"A",en:"No need. Your ID card or the QR code in the app is enough.",cn:"不需要。刷身份证或手机App的乘车码就行。"},
+  {w:"B",en:"Perfect. Where do I board the train?",cn:"太方便了。在哪儿上车？"},
+  {w:"A",en:"Gate 12 on the second floor. Boarding starts twenty minutes before departure.",cn:"二楼12号检票口，发车前二十分钟开始检票。"}
+]},
+{ id:"biz_meeting", scene:"biz", title:"Scheduling a Business Meeting 电话约见客户", lines:[
+  {w:"A",en:"Good morning. This is Lisa Chen from ABC Trading. May I speak to Mr. Brown?",cn:"早上好，我是ABC贸易的丽莎·陈。请问布朗先生在吗？"},
+  {w:"B",en:"Speaking. Good morning, Ms. Chen. How can I help you?",cn:"我就是。早上好，陈女士。有什么可以帮您？"},
+  {w:"A",en:"I'm calling to arrange a meeting about the new contract.",cn:"我打电话是想约个时间谈新合同的事。"},
+  {w:"B",en:"Certainly. When were you thinking of?",cn:"好的。您想约在什么时候？"},
+  {w:"A",en:"Would next Wednesday at ten in the morning suit you?",cn:"下周三上午十点您方便吗？"},
+  {w:"B",en:"I'm afraid I have another appointment then. How about Thursday afternoon?",cn:"恐怕那个时间我另有安排。周四下午怎么样？"},
+  {w:"A",en:"Thursday works too. Two o'clock or four o'clock?",cn:"周四也可以。两点还是四点？"},
+  {w:"B",en:"Let's make it two o'clock, at our office this time.",cn:"定在两点吧，这次来我们办公室。"},
+  {w:"A",en:"All right. Should I bring the price list and the samples?",cn:"好的。需要我带上报价单和样品吗？"},
+  {w:"B",en:"Yes, please. And could you email me the agenda in advance?",cn:"需要的。另外能提前把会议议程发邮件给我吗？"},
+  {w:"A",en:"Of course, I'll send it by Monday afternoon.",cn:"当然，我周一下午前发给您。"},
+  {w:"B",en:"Great. I'll book a meeting room and let the receptionist know you're coming.",cn:"太好了。我会订好会议室，并通知前台接待您。"},
+  {w:"A",en:"Perfect. Thank you for your time, Mr. Brown.",cn:"太好了。感谢您抽时间，布朗先生。"},
+  {w:"B",en:"My pleasure. See you on Thursday.",cn:"我的荣幸。周四见。"}
+]},
+{ id:"biz_coop", scene:"biz", title:"Discussing Cooperation 洽谈合作", lines:[
+  {w:"A",en:"Mr. Smith, I'm interested in your smart home products.",cn:"史密斯先生，我对贵公司的智能家居产品很感兴趣。"},
+  {w:"B",en:"Thank you. Which product line are you looking at?",cn:"谢谢。您关注的是哪条产品线？"},
+  {w:"A",en:"Mainly the smart lamps. Do you have a catalogue?",cn:"主要是智能灯具。有产品目录吗？"},
+  {w:"B",en:"Of course, here you are. This year we've added voice control.",cn:"当然，给您。今年我们新增了语音控制功能。"},
+  {w:"A",en:"Impressive. What about the minimum order quantity?",cn:"很吸引人。最小起订量是多少？"},
+  {w:"B",en:"Five hundred units for the first order.",cn:"首批订单五百件起订。"},
+  {w:"A",en:"And the unit price for a thousand units or more?",cn:"那一千件以上的单价是多少？"},
+  {w:"B",en:"Nine dollars each for a thousand, with a five percent discount for repeat orders.",cn:"一千件的话每件九美元，返单还有九五折优惠。"},
+  {w:"A",en:"Hmm, that's a bit higher than we expected.",cn:"嗯，这比我们预期的略高。"},
+  {w:"B",en:"Keep in mind our products come with a three-year warranty.",cn:"但请考虑我们的产品提供三年质保。"},
+  {w:"A",en:"That does add value. Could you send us a sample for testing first?",cn:"这确实有附加值。能先寄样品给我们测试吗？"},
+  {w:"B",en:"Sure, we can ship a sample set within this week.",cn:"没问题，本周内就能寄出样品套装。"},
+  {w:"A",en:"Great. If the test goes well, we'll talk about the details next week.",cn:"好的。如果测试顺利，下周我们详谈。"},
+  {w:"B",en:"Sounds good. I look forward to working with you.",cn:"听起来不错，期待与您合作。"}
+]},
+{ id:"food_order", scene:"food", title:"Ordering at a Restaurant 餐厅点餐", lines:[
+  {w:"A",en:"Good evening. A table for two?",cn:"晚上好。两位用餐吗？"},
+  {w:"B",en:"Yes, please. Somewhere near the window if possible.",cn:"是的。如果可以的话，想坐靠窗的位置。"},
+  {w:"A",en:"Of course, this way. Here are the menus.",cn:"当然可以，这边请。这是菜单。"},
+  {w:"B",en:"Thank you. What do you recommend tonight?",cn:"谢谢。今晚有什么推荐吗？"},
+  {w:"A",en:"The grilled salmon is very popular, and so is our beef noodle soup.",cn:"烤三文鱼很受欢迎，我们的牛肉面也是招牌。"},
+  {w:"B",en:"We'll try one of each. Could we also get some spring rolls to start?",cn:"那一样来一份。再先来点春卷怎么样？"},
+  {w:"A",en:"Certainly. Anything to drink?",cn:"当然。喝点什么？"},
+  {w:"B",en:"Two glasses of orange juice, no ice, please.",cn:"两杯橙汁，不要加冰。"},
+  {w:"A",en:"Sure. Would you like rice with the salmon or potatoes?",cn:"好的。三文鱼配米饭还是土豆？"},
+  {w:"B",en:"Rice for me. And could you make it not too spicy?",cn:"我配米饭。另外能别做得太辣吗？"},
+  {w:"A",en:"No problem. I'll let the kitchen know. Anything else?",cn:"没问题，我告知厨房。还需要别的吗？"},
+  {w:"B",en:"That's all for now, thanks. Oh, and some chopsticks please.",cn:"暂时就这些，谢谢。对了，请给我们拿双筷子。"},
+  {w:"A",en:"Of course. Your spring rolls will be ready in about ten minutes.",cn:"好的。春卷大约十分钟后上。"}
+]},
+{ id:"food_bill", scene:"food", title:"Paying the Bill 结账买单", lines:[
+  {w:"A",en:"Excuse me, could we have the bill, please?",cn:"服务员，麻烦买单。"},
+  {w:"B",en:"Of course. Together or separately?",cn:"好的。一起结还是分开结？"},
+  {w:"A",en:"Together, please. How much is it?",cn:"一起结。一共多少钱？"},
+  {w:"B",en:"That comes to one hundred and sixty-eight yuan in total.",cn:"总共一百六十八元。"},
+  {w:"A",en:"Hmm, I think there's a mistake. We didn't order the chicken.",cn:"嗯，好像有误。我们没点过鸡肉。"},
+  {w:"B",en:"Let me check... You're right, I'm so sorry. Let me remove it.",cn:"我查一下……您说得对，非常抱歉，我这就删掉。"},
+  {w:"A",en:"Thanks. So what's the new total?",cn:"谢谢。那现在是多少？"},
+  {w:"B",en:"One hundred and thirty-eight yuan.",cn:"一百三十八元。"},
+  {w:"A",en:"Does the bill include service charge?",cn:"账单里含服务费吗？"},
+  {w:"B",en:"No, service is free. Would you like to pay by card or cash?",cn:"不含，服务免费。您刷卡还是付现金？"},
+  {w:"A",en:"Card, please. Can I get a receipt?",cn:"刷卡。可以开张发票吗？"},
+  {w:"B",en:"Of course, one moment... Here you are.",cn:"当然，您稍等……给您。"},
+  {w:"A",en:"The food was delicious. We'll definitely come again.",cn:"菜很好吃，我们一定还会再来的。"},
+  {w:"B",en:"Thank you! We look forward to seeing you next time.",cn:"谢谢！期待您下次光临。"}
+]},
+];
+function dlgById(id){ return BUILTIN_DIALOGUES.filter(function(d){ return d.id === id; })[0] || null; }
+function dlgAccent(who){ return who === "B" ? 1 : 2; }   /* A=美音 / B=英音，靠口音区分说话人 */
+function renderDlgHome(){
+  var chips = '<button data-scene="" class="' + (dlgScene === "" ? "active" : "") + '">全部</button>';
+  Object.keys(DLG_SCENES).forEach(function(k){
+    chips += '<button data-scene="' + k + '" class="' + (dlgScene === k ? "active" : "") + '">' + DLG_SCENES[k] + "</button>";
+  });
+  $("dlgChips").innerHTML = chips;
+  var p = getDlgProg(), list = "";
+  BUILTIN_DIALOGUES.forEach(function(d){
+    if(dlgScene && d.scene !== dlgScene) return;
+    var cnt = p[d.id] || 0;
+    list += '<div class="dlg-item" data-id="' + esc(d.id) + '">'
+      + '<div class="di-name">' + esc(d.title) + '</div>'
+      + '<div class="di-sub">' + (DLG_SCENES[d.scene] || "") + " · " + d.lines.length + " 句" + (cnt ? " · 已听 " + cnt + " 次 🎧" : "") + "</div></div>";
+  });
+  $("dlgList").innerHTML = list || '<div class="empty">该分类下暂无对话</div>';
+}
+function openDlg(id){
+  var d = dlgById(id); if(!d) return;
+  curDlg = d; dlgRevealed = {}; dlgBlind = false; dlgShowCn = false;
+  stopDlgPlay();
+  $("dlgHome").style.display = "none";
+  $("dlgView").style.display = "";
+  $("dlgBlind").textContent = "🙈 盲听";
+  $("dlgShowCn").textContent = "🇨🇳 中文";
+  renderDlgBubbles();
+}
+function dlgBack(){
+  stopDlgPlay();
+  $("dlgView").style.display = "none";
+  $("dlgHome").style.display = "";
+  renderDlgHome();
+}
+function renderDlgBubbles(){
+  if(!curDlg) return;
+  $("dlgTitle").textContent = (DLG_SCENES[curDlg.scene] || "") + " · " + curDlg.title;
+  var html = "";
+  curDlg.lines.forEach(function(L, i){
+    var rev = !!dlgRevealed[i];
+    var masked = dlgBlind && !rev;
+    html += '<div class="dl-line ' + (L.w === "B" ? "whoB" : "whoA") + '" data-i="' + i + '">'
+      + '<button class="dl-spe" title="朗读本句">🔊</button>'
+      + '<div class="dl-b">'
+      + '<div class="dl-en' + (masked ? " mask" : "") + '">' + esc(masked ? "● ● ● ● ● ● ●" : L.en) + "</div>"
+      + '<div class="dl-cn' + ((dlgShowCn || rev) ? " show" : "") + '">' + esc(L.cn) + "</div>"
+      + "</div></div>";
+  });
+  $("dlgBubbles").innerHTML = html;
+}
+function dlgHighlight(i){
+  var els = document.querySelectorAll("#dlgBubbles .dl-line");
+  Array.prototype.forEach.call(els, function(el, k){ el.classList.toggle("cur", k === i); });
+  if(els[i] && els[i].scrollIntoView){ try{ els[i].scrollIntoView({ block:"center", behavior:"smooth" }); }catch(e){} }
+}
+function toggleDlgPlay(){
+  if(dlgAuto.on){ stopDlgPlay(); toast("已停止连播 ⏹"); return; }
+  if(!curDlg) return;
+  dlgAuto.on = true; dlgAuto.gen++;          /* 新代际：旧链回调立即作废 */
+  stopAllAudio();
+  $("dlgPlay").textContent = "⏹ 停止";
+  dlgAutoLine(dlgAuto.gen, 0);
+}
+function stopDlgPlay(){
+  dlgAuto.on = false; dlgAuto.gen++;
+  clearTimeout(dlgAuto.timer);
+  stopAllAudio();
+  $("dlgPlay").textContent = "▶️ 连播整篇";
+  Array.prototype.forEach.call(document.querySelectorAll("#dlgBubbles .dl-line.cur"), function(el){ el.classList.remove("cur"); });
+}
+function dlgAutoLine(gen, i){
+  if(!dlgAuto.on || gen !== dlgAuto.gen) return;
+  if(i >= curDlg.lines.length){
+    stopDlgPlay();
+    var p = getDlgProg(); p[curDlg.id] = (p[curDlg.id] || 0) + 1; saveDlgProg(p);
+    toast("本篇播完 ✓ 收听次数 +1（可点气泡核对原文）");
+    return;
+  }
+  dlgHighlight(i);
+  var L = curDlg.lines[i];
+  speakThen(L.en, function(){
+    if(!dlgAuto.on || gen !== dlgAuto.gen) return;
+    dlgAuto.timer = setTimeout(function(){ dlgAutoLine(gen, i + 1); }, 700);
+  }, dlgAccent(L.w));
+}
 /* ================= 单词卡片 ================= */
 var viewWords = [];   // 当前视图（应用了搜索/分类筛选）
 var cardIdx = 0;
@@ -699,7 +1060,7 @@ function nextCard(d){
 var autoPlay = { on: false, timer: null, gen: 0 };
 function onceFn(fn){ var d = false; return function(){ if(d) return; d = true; fn(); }; }
 /* 带完成回调的顺序朗读：播完（或全部接口失败后系统语音播完）再执行 cb */
-function speakThen(text, cb){
+function speakThen(text, cb, accent){
   if(!text){ cb(); return; }
   try{ speechSynthesis.cancel(); }catch(e){}
   if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
@@ -708,8 +1069,8 @@ function speakThen(text, cb){
     /* 中文释义：有道接口不支持中文（会读成乱音），用百度中文合成 */
     urls = ["https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
   }else{
-    /* 英文：有道优先，百度英文兜底 */
-    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
+    /* 英文：有道优先（accent=1 英音 / 2 美音，场景对话用口音区分说话人），百度英文兜底 */
+    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=" + (accent === 1 ? "1" : "2"),
             "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
   }
   playListThen(urls, 0, text, onceFn(cb));
@@ -1066,6 +1427,10 @@ function renderStats(){
   $("stWrong").textContent = wrongKeys.length;
   $("wrongCount").textContent = wrongKeys.length;
   $("stAcc").textContent = curProg.total ? Math.round(curProg.right / curProg.total * 100) + "%" : "—";
+  var dp = getDlgProg(), dN = 0, dT = 0;
+  Object.keys(dp).forEach(function(k){ if(dlgById(k)){ dN++; dT += dp[k]; } });
+  $("stDlgN").textContent = dN;
+  $("stDlgT").textContent = dT;
   var map = {};
   WORDS.forEach(function(w){ map[w.w] = w; });
   $("wrongList").innerHTML = wrongKeys.length
@@ -1215,6 +1580,52 @@ function init(){
 
   $("pickBtn").addEventListener("click", function(){ $("pickIn").click(); });
   $("pickIn").addEventListener("change", function(){ if(this.files[0]) handlePickFile(this.files[0]); this.value = ""; });
+
+  /* ---------- 场景对话 ---------- */
+  $("dlgChips").addEventListener("click", function(e){
+    var b = e.target.closest ? e.target.closest("button[data-scene]") : null;
+    if(!b) return;
+    dlgScene = b.getAttribute("data-scene");
+    renderDlgHome();
+  });
+  $("dlgList").addEventListener("click", function(e){
+    var it = e.target.closest ? e.target.closest(".dlg-item") : null;
+    if(it) openDlg(it.getAttribute("data-id"));
+  });
+  $("dlgBack").addEventListener("click", dlgBack);
+  $("dlgPlay").addEventListener("click", toggleDlgPlay);
+  $("dlgBlind").addEventListener("click", function(){
+    dlgBlind = !dlgBlind;
+    if(dlgBlind) dlgRevealed = {};
+    this.textContent = dlgBlind ? "👁 显示原文" : "🙈 盲听";
+    renderDlgBubbles();
+  });
+  $("dlgShowCn").addEventListener("click", function(){
+    dlgShowCn = !dlgShowCn;
+    this.textContent = dlgShowCn ? "🇨🇳 隐藏中文" : "🇨🇳 中文";
+    renderDlgBubbles();
+  });
+  $("dlgBubbles").addEventListener("click", function(e){
+    var line = e.target.closest ? e.target.closest(".dl-line") : null;
+    if(!line || !curDlg) return;
+    var i = Number(line.getAttribute("data-i"));
+    var L = curDlg.lines[i]; if(!L) return;
+    if(e.target.closest && e.target.closest(".dl-spe")){
+      stopDlgPlay();                 /* 单句朗读前先停连播，避免两路音频重叠 */
+      speakThen(L.en, null, dlgAccent(L.w));
+      dlgHighlight(i);
+      return;
+    }
+    var bub = e.target.closest(".dl-b");
+    if(bub){                          /* 点气泡：盲听模式下核对原文 + 中文 */
+      dlgRevealed[i] = true;
+      if(dlgBlind || !dlgShowCn){
+        var enEl = bub.querySelector(".dl-en"), cnEl = bub.querySelector(".dl-cn");
+        enEl.classList.remove("mask"); enEl.textContent = L.en;
+        cnEl.classList.add("show");
+      }
+    }
+  });
 
   $("wrongQuizBtn").addEventListener("click", function(){
     var map = {};
