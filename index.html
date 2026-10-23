@@ -222,14 +222,14 @@
       </div>
       <input type="file" id="fileIn" accept=".csv,.json,.txt">
       <div class="fmt-note">【导入格式说明】
-CSV / TXT（推荐 UTF-8 编码；Excel 请另存为「CSV UTF-8」）：
-单词,音标,词性.中文释义,例句,例句中文
-每行一个单词，至少包含「单词」和「中文释义」，如：
-abandon,əˈbændən,v.放弃；抛弃,He abandoned his car in the snow.,他把车丢在雪地里。
-
+CSV / TXT（推荐 UTF-8 编码；Excel 请另存为「CSV UTF-8」），支持以下任意格式（每行一条，自动识别）：
+· 单词+释义：walkway,人行道，通道
+· 带音标/例句：abandon,əˈbændən,v.放弃；抛弃,He abandoned his car.,他把车丢在雪地里。
+· 整句/短语（用冒号分隔）：this meeting is called to order：会议现在开始
+· 也可用全角逗号、Tab、分号或空格作分隔符
 JSON 格式：
 [{"w":"abandon","ph":"əˈbændən","tr":[{"p":"v","c":"放弃"}],"ex":[{"en":"...","cn":"..."}]}]
-w=单词、ph=音标、tr=释义列表(p 词性,c 中文)、ex=例句列表(en 英文,cn 中文)，均可缺省。</div>
+w=单词（或整句）、ph=音标、tr=释义列表(p 词性,c 中文)、ex=例句列表(en 英文,cn 中文)，均可缺省。</div>
       <h2 style="margin-top:18px">我的词库</h2>
       <div id="userBooks" class="book-list"></div>
     </div>
@@ -648,6 +648,13 @@ function parseImport(text, fname){
     text.split(/\r?\n/).forEach(function(line){
       line = line.trim();
       if(!line || /^\s*单词/.test(line) || /^word(\s*[,,]|$)/i.test(line)) return;
+      /* 整句/短语条目：冒号分隔，如 this meeting is called to order：会议现在开始 */
+      var mColon = line.match(/^([^:：]+)[:：]\s*(.+)$/);
+      if(mColon && /[a-zA-Z]/.test(mColon[1]) && !/[\u4e00-\u9fff]/.test(mColon[1])){
+        words.push({ w: mColon[1].trim().replace(/[,;;，；]\s*$/, ""), ph: "", us: "",
+                     tr: [{ p: "", c: mColon[2].trim() }], ex: [], cat: "" });
+        return;
+      }
       var cols;
       if(line.indexOf("\t") >= 0) cols = line.split(/\t+/);
       else if(line.indexOf(",") >= 0) cols = line.split(",");
