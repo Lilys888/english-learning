@@ -646,17 +646,38 @@ function parseImport(text, fname){
     });
   }else{
     text.split(/\r?\n/).forEach(function(line){
-      if(!line.trim() || /^\s*单词/.test(line)) return;
-      var cols = line.split(",");
-      if(cols.length < 2) return;
-      var w = cols[0].trim();
-      if(!w) return;
-      var tr = [];
-      var cn = cols[2] !== undefined ? cols[2].trim() : "";
-      if(cn) tr.push({ p: cn.split(".")[0] + ".", c: cn.replace(/^[a-z]+\.\s*/, "") });
-      var ex = [];
-      if(cols[3] && cols[3].trim()) ex.push({ en: cols[3].trim(), cn: (cols[4] || "").trim() });
-      words.push({ w: w, ph: cols[1] ? cols[1].trim() : "", us: "", tr: tr, ex: ex, cat: "" });
+      line = line.trim();
+      if(!line || /^\s*单词/.test(line) || /^word(\s*[,,]|$)/i.test(line)) return;
+      var cols;
+      if(line.indexOf("\t") >= 0) cols = line.split(/\t+/);
+      else if(line.indexOf(",") >= 0) cols = line.split(",");
+      else cols = line.split(/，|;|;|\s{2,}|\s+/);
+      cols = cols.map(function(c){ return c.trim(); });
+      if(cols.length < 2 || !cols[0]) return;
+      var w = cols[0], ph = "", tr = [], ex = [];
+      function addTr(s){
+        if(!s) return;
+        var m = s.match(/^\s*([a-zA-Z]+)\.\s*(.*)$/);
+        tr.push(m ? { p: m[1] + ".", c: m[2] } : { p: "", c: s });
+      }
+      var isIpa = /[əɪʊɒæʌθðʃŋːˈˌ]/.test(cols[1] || "") || /^\[.*\]$|^\/.*\/$/.test(cols[1] || "");
+      var hasCn = function(s){ return /[\u4e00-\u9fff]/.test(s); };
+      if(cols.length === 2){
+        addTr(cols[1]);                                            /* 单词,释义 */
+      }else if(isIpa && cols.length === 3){
+        ph = cols[1]; addTr(cols[2]);                              /* 单词,音标,释义 */
+      }else if(cols.length === 3 && !hasCn(cols[2])){
+        addTr(cols[1]); ex.push({ en: cols[2], cn: "" });          /* 单词,释义,例句 */
+      }else if(isIpa && cols.length >= 4){
+        ph = cols[1]; addTr(cols[2]);                              /* 单词,音标,释义,例句(,例句中文) */
+        if(cols[3]) ex.push({ en: cols[3], cn: cols[4] || "" });
+      }else if(cols.length >= 4 && !hasCn(cols[1])){
+        addTr(cols[1]);                                            /* 单词,释义,例句,例句中文 */
+        if(cols[2]) ex.push({ en: cols[2], cn: cols[3] || "" });
+      }else{
+        addTr(cols.slice(1).join("，"));                           /* 其他：第2列起全部视为释义 */
+      }
+      words.push({ w: w, ph: ph, us: "", tr: tr, ex: ex, cat: "" });
     });
   }
   words = words.filter(function(x){ return x.w && (x.tr.length || x.ex.length); });
