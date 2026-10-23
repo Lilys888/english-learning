@@ -284,8 +284,8 @@ w=单词（或整句）、ph=音标、tr=释义列表(p 词性,c 中文)、ex=�
       <button id="noteClear" class="btn gray">🗑 清空全部笔记</button>
     </div>
     <details style="margin-top:14px">
-      <summary>🔄 备份 / 恢复（跨设备同步笔记）</summary>
-      <div class="hint" style="text-align:left;margin-top:8px">笔记保存在本机浏览器，换设备不会自动同步。导出后在另一台设备导入即可同步。</div>
+      <summary>🔄 备份 / 恢复（跨设备同步：笔记 + 自定义词库 + 学习进度）</summary>
+      <div class="hint" style="text-align:left;margin-top:8px">笔记、自定义词库、学习进度都保存在本机浏览器，换设备不会自动同步。在此导出后到另一台设备导入即可全部同步。</div>
       <div class="card-actions" style="margin-top:10px;justify-content:flex-start">
         <button id="noteCopy" class="btn gray">📋 复制笔记数据</button>
         <button id="noteDownload" class="btn gray">💾 下载备份文件</button>
@@ -541,13 +541,13 @@ function delNote(id){
   renderNotes();
   toast("已删除 🗑");
 }
-/* ---------- 备份 / 恢复（跨设备同步） ---------- */
-function notesBackupJSON(){
-  return JSON.stringify({ type: "english-notes", version: 1, notes: getNotes() });
+/* ---------- 备份 / 恢复（跨设备同步：笔记 + 自定义词库 + 进度） ---------- */
+function buildBackup(){
+  return JSON.stringify({ type: "english-backup", version: 2, notes: getNotes(), userBooks: getUserBooks(), progress: getProgress() });
 }
 function copyNotesBackup(){
-  if(!getNotes().length){ toast("还没有笔记可备份"); return; }
-  var data = notesBackupJSON();
+  if(!getNotes().length && !Object.keys(getUserBooks()).length){ toast("没有可备份的数据"); return; }
+  var data = buildBackup();
   function fallback(){
     var ta = $("notePaste");
     ta.value = data; ta.style.display = ""; ta.select();
@@ -561,11 +561,11 @@ function copyNotesBackup(){
   }else fallback();
 }
 function downloadNotesBackup(){
-  if(!getNotes().length){ toast("还没有笔记可备份"); return; }
-  var blob = new Blob([notesBackupJSON()], { type: "application/json" });
+  if(!getNotes().length && !Object.keys(getUserBooks()).length){ toast("没有可备份的数据"); return; }
+  var blob = new Blob([buildBackup()], { type: "application/json" });
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "english-notes-backup-" + fmtNoteDate(Date.now()).slice(0,10).replace(/-/g,"") + ".json";
+  a.download = "english-backup-" + fmtNoteDate(Date.now()).slice(0,10).replace(/-/g,"") + ".json";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
   toast("备份文件已下载 ✓");
@@ -573,29 +573,44 @@ function downloadNotesBackup(){
 function importNotesData(str){
   var obj = null;
   try{ obj = JSON.parse(str); }catch(e){}
-  var incoming = null;
-  if(obj && Array.isArray(obj.notes)) incoming = obj.notes;           // 标准备份格式
-  else if(Array.isArray(obj)) incoming = obj;                          // 直接是数组
-  if(!incoming) { toast("数据格式不正确，无法导入"); return; }
-  // 过滤非法条目
-  incoming = incoming.filter(function(n){ return n && typeof n.text === "string" && n.text.trim(); })
+  var incomingNotes = null, backupBooks = null, backupProg = null;
+  if(obj && Array.isArray(obj.notes)){ incomingNotes = obj.notes; backupBooks = obj.userBooks; backupProg = obj.progress; }  // 全量备份
+  else if(Array.isArray(obj)) incomingNotes = obj;                        // 直接是笔记数组
+  if(!incomingNotes && !backupBooks){ toast("数据格式不正确，无法导入"); return; }
+  /* 规范化笔记条目 */
+  incomingNotes = (incomingNotes || []).filter(function(n){ return n && typeof n.text === "string" && n.text.trim(); })
     .map(function(n){
       return { id: String(n.id || (Date.now() + "" + Math.floor(Math.random()*10000))),
                word: typeof n.word === "string" ? n.word : "", text: String(n.text), date: Number(n.date) || Date.now() };
     });
-  if(!incoming.length){ toast("备份中没有有效笔记"); return; }
-  var cur = getNotes();
-  var curIds = {}; cur.forEach(function(n){ curIds[n.id] = true; });
-  var add = incoming.filter(function(n){ return !curIds[n.id]; });
-  var mode = confirm("共 " + incoming.length + " 条备份笔记，其中 " + add.length + " 条是新的。\n\n确定 = 合并（保留现有笔记并追加新的）\n取消 = 改为完全覆盖");
+  var isFull = !!(backupBooks || backupProg);
+  var newNotes = 0, newBooks = 0, newProg = 0;
+  /* 统计将合并的新数据量 */
+  var curNotes = getNotes();
+  var noteIds = {}; curNotes.forEach(function(n){ noteIds[n.id] = true; });
+  incomingNotes.forEach(function(n){ if(!noteIds[n.id]) newNotes++; });
+  var curBooks = getUserBooks();
+  var curProg = getProgress();
+  if(backupBooks && typeof backupBooks === "object") Object.keys(backupBooks).forEach(function(k){ if(!curBooks[k]) newBooks++; });
+  if(backupProg && typeof backupProg === "object") Object.keys(backupProg).forEach(function(k){ if(!curProg[k]) newProg++; });
+  var mode = confirm((isFull ? "备份包含：笔记 " + incomingNotes.length + " 条、自定义词库 " + (backupBooks ? Object.keys(backupBooks).length : 0) + " 本、进度数据 " + (backupProg ? Object.keys(backupProg).length : 0) + " 项" : "备份包含笔记 " + incomingNotes.length + " 条") + "。\n将新增：笔记 " + newNotes + " 条、词库 " + newBooks + " 本、进度 " + newProg + " 项。\n\n确定 = 合并（保留本机已有数据，仅追加新的）\n取消 = 完全覆盖（本机数据被备份替换）");
   if(mode){
-    saveNotes(cur.concat(add));
-    toast("已合并导入 " + add.length + " 条笔记 ✓");
+    /* 合并：笔记按 id 去重追加 */
+    saveNotes(curNotes.concat(incomingNotes.filter(function(n){ return !noteIds[n.id]; })));
+    /* 合并：词库/进度只添加本机没有的 key */
+    if(backupBooks && typeof backupBooks === "object") Object.keys(backupBooks).forEach(function(k){ if(!curBooks[k]) curBooks[k] = backupBooks[k]; });
+    if(backupProg && typeof backupProg === "object") Object.keys(backupProg).forEach(function(k){ if(!curProg[k]) curProg[k] = backupProg[k]; });
+    toast("已合并导入：笔记 +" + newNotes + "、词库 +" + newBooks + "、进度 +" + newProg + " ✓");
   }else{
-    saveNotes(incoming);
-    toast("已覆盖导入 " + incoming.length + " 条笔记 ✓");
+    saveNotes(incomingNotes);
+    if(backupBooks && typeof backupBooks === "object") curBooks = backupBooks;
+    if(backupProg && typeof backupProg === "object") curProg = backupProg;
+    toast("已覆盖导入全部备份数据 ✓");
   }
+  setUserBooks(curBooks);
+  setProgress(curProg);
   renderNotes();
+  refreshBookSel();
 }
 function exportNotes(){
   var list = getNotes();
