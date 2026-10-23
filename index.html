@@ -705,13 +705,14 @@ function speakThen(text, cb){
   if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
   var zh = isChinese(text);
   var isMultiWord = text.trim().split(/\s+/).length > 1;
+  /* 连播/朗读统一优先有道语音（更自然）；百度与系统语音仅作失败兜底 */
   var urls;
   if(zh && isMultiWord){
-    urls = ["https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web",
-            "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=1"];
+    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=1",
+            "https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
   }else if(!zh && isMultiWord){
-    urls = ["https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web",
-            "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2"];
+    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
+            "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
   }else{
     urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
             "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
@@ -766,7 +767,8 @@ function playListThen(urls, i, text, cb){
   }, 12000);
 }
 function autoTransOf(it){
-  return (it.tr || []).map(function(t){ return (t.p ? t.p + " " : "") + t.c; }).join("；");
+  /* 只播释义内容，不播词性（如“拒绝；垃圾”而不是“n 拒绝”） */
+  return (it.tr || []).map(function(t){ return t.c; }).join("；");
 }
 function toggleAutoPlay(){
   if(autoPlay.on){ stopAutoPlay(); toast("已停止连播 ⏹"); }
