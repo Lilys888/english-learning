@@ -143,6 +143,7 @@
         <button id="btnKnow" class="btn ok">✓ 认识</button>
         <button id="btnUnknow" class="btn no">✗ 不认识</button>
         <button id="btnShuffle" class="btn gray">🔀 打乱</button>
+        <button id="btnAuto" class="btn gray" title="自动连播：先读英文再读释义，逐个单词播放">▶️ 自动连播</button>
         <button id="noteFromCard" class="btn gray" title="为当前单词记一条笔记">📝 记笔记</button>
       </div>
       <div class="card-nav">
@@ -462,6 +463,7 @@ function switchTab(tab){
   if(tab === "stats") renderStats();
   if(tab === "manage") renderManage();
   if(tab === "notes") renderNotes();
+  if(tab !== "cards" && autoPlay.on) stopAutoPlay();   /* 离开卡片页时停止连播 */
 }
 
 /* ================= 学习笔记 ================= */
@@ -691,6 +693,91 @@ function nextCard(d){
   if(!viewWords.length) return;
   cardIdx = (cardIdx + d + viewWords.length) % viewWords.length;
   renderCard();
+}
+
+/* ================= 自动连播（英文 + 释义） ================= */
+var autoPlay = { on: false, timer: null };
+/* 带完成回调的顺序朗读：播完（或全部接口失败后系统语音播完）再执行 cb */
+function speakThen(text, cb){
+  if(!text){ cb(); return; }
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
+  var zh = isChinese(text);
+  var isMultiWord = text.trim().split(/\s+/).length > 1;
+  var urls;
+  if(zh && isMultiWord){
+    urls = ["https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web",
+            "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=1"];
+  }else if(!zh && isMultiWord){
+    urls = ["https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web",
+            "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2"];
+  }else{
+    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
+            "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
+  }
+  playListThen(urls, 0, text, cb);
+}
+function playListThen(urls, i, text, cb){
+  if(i >= urls.length){
+    /* 网络接口都失败 → 系统语音兜底，播完再回调 */
+    try{
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = isChinese(text) ? "zh-CN" : "en-US"; u.rate = 0.92;
+      var done = false; function fin(){ if(done) return; done = true; cb(); }
+      u.onend = fin; u.onerror = fin;
+      speechSynthesis.speak(u);
+      setTimeout(fin, Math.max(2500, text.length * 400));  /* 兜底：个别浏览器不触发 onend */
+    }catch(e){ cb(); }
+    return;
+  }
+  var a = new Audio(urls[i]);
+  a.onerror = function(){ playListThen(urls, i + 1, text, cb); };
+  a.onended = function(){ curAudio = null; cb(); };
+  a.play().catch(function(){ playListThen(urls, i + 1, text, cb); });
+  curAudio = a;
+}
+function autoTransOf(it){
+  return (it.tr || []).map(function(t){ return (t.p ? t.p + " " : "") + t.c; }).join("；");
+}
+function toggleAutoPlay(){
+  if(autoPlay.on){ stopAutoPlay(); toast("已停止连播 ⏹"); }
+  else startAutoPlay();
+}
+function startAutoPlay(){
+  if(!viewWords.length){ toast("当前没有可播放的单词"); return; }
+  autoPlay.on = true;
+  cardIdx = 0; renderCard();              /* 从第一个单词开始 */
+  $("btnAuto").textContent = "⏹ 停止连播";
+  playCurAuto();
+}
+function stopAutoPlay(){
+  autoPlay.on = false;
+  clearTimeout(autoPlay.timer);
+  if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
+  try{ speechSynthesis.cancel(); }catch(e){}
+  $("btnAuto").textContent = "▶️ 自动连播";
+}
+function playCurAuto(){
+  if(!autoPlay.on) return;
+  var it = viewWords[cardIdx];
+  if(!it){ stopAutoPlay(); return; }
+  speakThen(it.w, function(){              /* ① 英文单词 */
+    if(!autoPlay.on) return;
+    autoPlay.timer = setTimeout(function(){
+      var zh = autoTransOf(it);
+      if(zh){
+        speakThen(zh, function(){          /* ② 中文释义 */
+          if(!autoPlay.on) return;
+          autoPlay.timer = setTimeout(function(){  /* ③ 停顿后下一个 */
+            nextCard(1);
+            playCurAuto();
+          }, 900);
+        });
+      }else{
+        autoPlay.timer = setTimeout(function(){ nextCard(1); playCurAuto(); }, 900);
+      }
+    }, 500);
+  });
 }
 
 /* ================= 测验 ================= */
@@ -954,6 +1041,7 @@ function renderStats(){
 
 /* ================= 初始化与事件绑定 ================= */
 function changeBook(id){
+  if(autoPlay.on) stopAutoPlay();   /* 换词库时停止连播 */
   curBookId = id;
   LSset("el_curBook", id);
   initBook();
@@ -1018,6 +1106,7 @@ function init(){
   $("btnKnow").addEventListener("click", function(){ markCard(true); });
   $("btnUnknow").addEventListener("click", function(){ markCard(false); });
   $("btnShuffle").addEventListener("click", function(){ WORDS = shuffle(WORDS); buildCatSel(); refreshView(); toast("已打乱顺序 🔀"); });
+  $("btnAuto").addEventListener("click", toggleAutoPlay);
   $("btnPrev").addEventListener("click", function(){ nextCard(-1); });
   $("btnNext").addEventListener("click", function(){ nextCard(1); });
   $("cardSearch").addEventListener("input", refreshView);
