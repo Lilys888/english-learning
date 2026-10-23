@@ -81,6 +81,19 @@
   .dl-en.mask{letter-spacing:2px;color:#b6bccb;font-size:13px}
   .dl-cn{font-size:13px;color:var(--muted);margin-top:3px;display:none}
   .dl-cn.show{display:block}
+  /* 音标学习 */
+  .ipa-cat{margin:18px 0 8px;font-size:16px;font-weight:700;color:var(--text)}
+  .ipa-cat .ipa-count{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+  .ipa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .ipa-tile{background:var(--card);border:1px solid #e5e7f0;border-radius:12px;padding:12px;cursor:pointer;box-shadow:var(--shadow);text-align:center}
+  .ipa-tile:hover{border-color:var(--primary)}
+  .ipa-tile.playing{border-color:var(--primary);box-shadow:0 0 0 2px rgba(74,108,247,.25)}
+  .ipa-sym{font-size:22px;font-weight:800;color:var(--primary)}
+  .ipa-tip{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5;min-height:36px}
+  .ipa-words{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .ipa-word{font-size:13px;background:#eef1ff;color:var(--primary);border-radius:12px;padding:2px 10px;cursor:pointer}
+  .ipa-word:hover{background:#dbe2ff}
+  .ipa-word.playing{background:var(--primary);color:#fff}
 </style>
 <style>
   .q-progress{height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:14px}
@@ -130,6 +143,7 @@
   </div>
   <nav id="tabs">
     <button data-tab="cards" class="active"><span class="ico">🎴</span>卡片</button>
+    <button data-tab="ipa"><span class="ico">🔤</span>音标</button>
     <button data-tab="dlg"><span class="ico">💬</span>对话</button>
     <button data-tab="quiz"><span class="ico">✏️</span>测验</button>
     <button data-tab="trans"><span class="ico">🌐</span>翻译</button>
@@ -188,6 +202,12 @@
       <div class="hint">💡 更省事的方式：用本地服务器打开（在 english-learning 目录运行
         <code>python3 -m http.server 8000</code> 后访问 localhost:8000），或部署到 GitHub Pages（见 README），则无需手动选择。</div>
     </div>
+  </section>
+
+  <section id="sec-ipa">
+    <h2>🔤 英语国际音标（48 个）</h2>
+    <div class="hint" style="margin:0 0 4px">点击音标卡片 → 依次连读该音标的例词；点击单个例词 → 只读该词</div>
+    <div id="ipaGroups"></div>
   </section>
 
   <section id="sec-dlg">
@@ -551,6 +571,59 @@ EMBEDDED_BOOKS.uniphrases = [
 ];
 </script>
 <script>
+/* 48 个英语国际音标（DJ 英式音标），ws 为示例单词 [单词, 中文]，点击卡片连读以强化记忆 */
+var BUILTIN_IPA = [
+{s:"iː",cat:"单元音",tip:"长元音，嘴角向两侧咧开，类似“衣”拖长",ws:[["see","看见"],["eat","吃"],["teacher","老师"]]},
+{s:"ɪ",cat:"单元音",tip:"短促，介于“衣”和“诶”之间，比 iː 松",ws:[["sit","坐"],["big","大的"],["fish","鱼"]]},
+{s:"e",cat:"单元音",tip:"短音，嘴半开，舌位中前",ws:[["bed","床"],["pen","钢笔"],["egg","鸡蛋"]]},
+{s:"æ",cat:"单元音",tip:"嘴张大，舌压低，类似“哎”但更长",ws:[["cat","猫"],["apple","苹果"],["happy","快乐的"]]},
+{s:"ɑː",cat:"单元音",tip:"长音，口腔全开，舌后缩，类似“啊”",ws:[["car","汽车"],["far","远的"],["father","父亲"]]},
+{s:"ɒ",cat:"单元音",tip:"短圆唇，英音中的短 o，美音读作 ɑː",ws:[["dog","狗"],["hot","热的"],["box","盒子"]]},
+{s:"ɔː",cat:"单元音",tip:"长圆唇，类似“噢”拖长",ws:[["door","门"],["ball","球"],["four","四"]]},
+{s:"ʊ",cat:"单元音",tip:"短促圆唇，介于“乌”和“哦”之间",ws:[["book","书"],["good","好的"],["put","放"]]},
+{s:"uː",cat:"单元音",tip:"长音，双唇收圆突出，类似“乌”拖长",ws:[["food","食物"],["blue","蓝色的"],["two","二"]]},
+{s:"ʌ",cat:"单元音",tip:"短音，口腔中性放松，类似“啊”短促",ws:[["bus","公交车"],["cup","杯子"],["love","爱"]]},
+{s:"ɜː",cat:"单元音",tip:"长音，舌中央卷起，唇扁平，类似“饿”",ws:[["bird","鸟"],["girl","女孩"],["learn","学习"]]},
+{s:"ə",cat:"单元音",tip:"最常见弱读音，轻短含糊，只在非重读处",ws:[["about","关于"],["ago","以前"],["banana","香蕉"]]},
+{s:"eɪ",cat:"双元音",tip:"由 e 滑向 ɪ，类似“诶”",ws:[["day","天"],["name","名字"],["rain","雨"]]},
+{s:"aɪ",cat:"双元音",tip:"由 a 滑向 ɪ，类似“爱”",ws:[["time","时间"],["like","喜欢"],["night","夜晚"]]},
+{s:"ɔɪ",cat:"双元音",tip:"由 ɔ 滑向 ɪ，类似“哦伊”",ws:[["boy","男孩"],["toy","玩具"],["enjoy","享受"]]},
+{s:"əʊ",cat:"双元音",tip:"由 ə 滑向 ʊ，类似“欧”",ws:[["go","去"],["home","家"],["phone","电话"]]},
+{s:"aʊ",cat:"双元音",tip:"由 a 滑向 ʊ，类似“奥”",ws:[["now","现在"],["house","房子"],["down","向下"]]},
+{s:"ɪə",cat:"双元音",tip:"由 ɪ 滑向 ə，类似“伊尔”",ws:[["near","近的"],["here","这里"],["ear","耳朵"]]},
+{s:"eə",cat:"双元音",tip:"由 e 滑向 ə，类似“哎尔”",ws:[["hair","头发"],["pear","梨"],["where","哪里"]]},
+{s:"ʊə",cat:"双元音",tip:"由 ʊ 滑向 ə，类似“乌尔”",ws:[["tour","旅行"],["sure","确信的"],["poor","贫穷的"]]},
+{s:"p",cat:"清辅音",tip:"双唇闭合送气爆发，声带不振动",ws:[["pen","钢笔"],["apple","苹果"],["map","地图"]]},
+{s:"t",cat:"清辅音",tip:"舌尖抵上齿龈送气爆发",ws:[["ten","十"],["water","水"],["cat","猫"]]},
+{s:"k",cat:"清辅音",tip:"舌后抵软腭送气爆发",ws:[["key","钥匙"],["cake","蛋糕"],["book","书"]]},
+{s:"f",cat:"清辅音",tip:"上齿咬下唇送气摩擦",ws:[["fish","鱼"],["life","生活"],["coffee","咖啡"]]},
+{s:"s",cat:"清辅音",tip:"舌尖接近上齿龈，气流摩擦而出",ws:[["sun","太阳"],["class","班级"],["bus","公交车"]]},
+{s:"θ",cat:"清辅音",tip:"舌尖轻咬上下齿之间送气，勿读成 s",ws:[["think","想"],["three","三"],["month","月份"]]},
+{s:"ʃ",cat:"清辅音",tip:"双唇略圆突出，类似“许”的声母",ws:[["she","她"],["shop","商店"],["English","英语"]]},
+{s:"tʃ",cat:"清辅音",tip:"t 与 ʃ 连发，类似“吃”的声母",ws:[["chair","椅子"],["teacher","老师"],["watch","手表"]]},
+{s:"tr",cat:"清辅音",tip:"t 与 r 连读，类似“戳”的声母",ws:[["tree","树"],["train","火车"],["country","国家"]]},
+{s:"ts",cat:"清辅音",tip:"t 与 s 连读，类似“次”的声母（名词复数）",ws:[["cats","猫（复数）"],["seats","座位（复数）"],["bits","少量（复数）"]]},
+{s:"b",cat:"浊辅音",tip:"口型同 p，但声带振动不送气",ws:[["book","书"],["table","桌子"],["job","工作"]]},
+{s:"d",cat:"浊辅音",tip:"口型同 t，声带振动",ws:[["day","天"],["read","阅读"],["good","好的"]]},
+{s:"g",cat:"浊辅音",tip:"口型同 k，声带振动",ws:[["girl","女孩"],["big","大的"],["dog","狗"]]},
+{s:"v",cat:"浊辅音",tip:"口型同 f，声带振动，勿读成 w",ws:[["very","非常"],["love","爱"],["five","五"]]},
+{s:"z",cat:"浊辅音",tip:"口型同 s，声带振动，勿读成 s",ws:[["zoo","动物园"],["music","音乐"],["zero","零"]]},
+{s:"ð",cat:"浊辅音",tip:"口型同 θ，声带振动，勿读成 z",ws:[["this","这个"],["mother","母亲"],["with","和…一起"]]},
+{s:"ʒ",cat:"浊辅音",tip:"口型同 ʃ，声带振动，类似“日”的声母",ws:[["usually","通常"],["television","电视"],["pleasure","愉快"]]},
+{s:"dʒ",cat:"浊辅音",tip:"d 与 ʒ 连发，类似“基”的声母",ws:[["job","工作"],["orange","橙子"],["judge","判断"]]},
+{s:"dr",cat:"浊辅音",tip:"d 与 r 连读，类似“朱”的声母",ws:[["dream","梦想"],["drink","喝"],["children","孩子们"]]},
+{s:"dz",cat:"浊辅音",tip:"d 与 z 连读，类似“兹”（名词复数浊化）",ws:[["beds","床（复数）"],["friends","朋友（复数）"],["words","单词（复数）"]]},
+{s:"m",cat:"浊辅音",tip:"双唇闭合，气流从鼻腔出，声带振动",ws:[["man","男人"],["home","家"],["some","一些"]]},
+{s:"n",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从鼻腔出",ws:[["nine","九"],["moon","月亮"],["sun","太阳"]]},
+{s:"ŋ",cat:"浊辅音",tip:"舌后抵软腭，鼻音，常见于 -ng 结尾",ws:[["sing","唱歌"],["long","长的"],["English","英语"]]},
+{s:"h",cat:"浊辅音",tip:"声门送气，类似轻叹气，口型随后元音变化",ws:[["he","他"],["hello","你好"],["hand","手"]]},
+{s:"l",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从舌侧出，注意尾辅音 dark l",ws:[["like","喜欢"],["love","爱"],["school","学校"]]},
+{s:"r",cat:"浊辅音",tip:"舌尖卷起不触上腭，双唇略圆",ws:[["red","红色的"],["run","跑"],["write","写"]]},
+{s:"j",cat:"浊辅音",tip:"舌位似 iː 快速滑向后面的元音，类似“耶”的声母",ws:[["yes","是"],["you","你"],["yellow","黄色的"]]},
+{s:"w",cat:"浊辅音",tip:"双唇收圆突出快速滑向后面的元音，类似“乌”起始",ws:[["we","我们"],["water","水"],["window","窗户"]]}
+];
+</script>
+<script>
 "use strict";
 /* ================= 工具 ================= */
 var $ = function(id){ return document.getElementById(id); };
@@ -709,9 +782,54 @@ function switchTab(tab){
   if(tab === "stats") renderStats();
   if(tab === "manage") renderManage();
   if(tab === "notes") renderNotes();
+  if(tab === "ipa") renderIpa();
   if(tab === "dlg") renderDlgHome();
   if(tab !== "cards" && autoPlay.on) stopAutoPlay();   /* 离开卡片页时停止连播 */
   if(tab !== "dlg" && dlgAuto.on) stopDlgPlay();       /* 离开对话页时停止对话连播 */
+  if(tab !== "ipa") ipaGen++;                         /* 离开音标页时中断例词连读 */
+}
+
+/* ================= 音标学习 ================= */
+var ipaGen = 0;   /* 连读代号：切换页面或点击新卡片时 +1，旧连读链自动中断 */
+function renderIpa(){
+  var order = ["单元音", "双元音", "清辅音", "浊辅音"];
+  var html = "";
+  order.forEach(function(cat){
+    var items = BUILTIN_IPA.map(function(p, i){ return {p: p, i: i}; }).filter(function(x){ return x.p.cat === cat; });
+    if(!items.length) return;
+    html += '<h3 class="ipa-cat">' + cat + '<span class="ipa-count">（' + items.length + ' 个）</span></h3>'
+          + '<div class="ipa-grid">';
+    items.forEach(function(x){
+      html += '<div class="ipa-tile" data-i="' + x.i + '">'
+            + '<div class="ipa-sym">/' + x.p.s + '/</div>'
+            + '<div class="ipa-tip">' + esc(x.p.tip) + '</div>'
+            + '<div class="ipa-words">'
+            + x.p.ws.map(function(w){ return '<span class="ipa-word" data-w="' + esc(w[0]) + '" title="' + esc(w[1]) + '">' + esc(w[0]) + '</span>'; }).join("")
+            + '</div></div>';
+    });
+    html += '</div>';
+  });
+  $("ipaGroups").innerHTML = html;
+}
+/* 点击音标卡片：依次连读该音标的全部例词，强化“音标-单词”关联记忆 */
+function playIpaTile(idx){
+  ipaGen++;
+  var g = ipaGen, p = BUILTIN_IPA[idx], i = 0;
+  var tile = document.querySelector('.ipa-tile[data-i="' + idx + '"]');
+  function clearHi(){
+    if(tile) tile.classList.remove("playing");
+    document.querySelectorAll(".ipa-word.playing").forEach(function(el){ el.classList.remove("playing"); });
+  }
+  function next(){
+    if(g !== ipaGen){ clearHi(); return; }        /* 已切换页面或点了别的卡片：中断 */
+    document.querySelectorAll(".ipa-word.playing").forEach(function(el){ el.classList.remove("playing"); });
+    if(i >= p.ws.length){ clearHi(); return; }
+    var wordEl = tile ? tile.querySelector('.ipa-word[data-w="' + p.ws[i][0] + '"]') : null;
+    if(wordEl) wordEl.classList.add("playing");
+    speakThen(p.ws[i][0], function(){ i++; next(); });
+  }
+  if(tile) tile.classList.add("playing");
+  next();
 }
 
 /* ================= 学习笔记 ================= */
@@ -1698,6 +1816,14 @@ function init(){
     b.addEventListener("click", function(){ switchTab(b.dataset.tab); });
   });
   $("bookSel").addEventListener("change", function(){ changeBook(this.value); });
+
+  /* 音标页：点卡片连读例词，点单个例词只读该词 */
+  $("ipaGroups").addEventListener("click", function(e){
+    var wEl = e.target.closest ? e.target.closest(".ipa-word") : null;
+    if(wEl){ ipaGen++; speak(wEl.dataset.w); return; }
+    var tile = e.target.closest ? e.target.closest(".ipa-tile") : null;
+    if(tile) playIpaTile(+tile.dataset.i);
+  });
 
   $("flipWrap").addEventListener("click", function(e){
     if(e.target.closest && (e.target.closest(".speak-btn") || e.target.closest(".ex-item"))) return;
