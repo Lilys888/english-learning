@@ -705,11 +705,11 @@ function speakThen(text, cb){
   if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
   var zh = isChinese(text);
   var isMultiWord = text.trim().split(/\s+/).length > 1;
-  /* 连播/朗读统一优先有道语音（更自然）；百度与系统语音仅作失败兜底 */
+  /* 英文统一用有道（更自然）；中文释义有道不支持（会读成乱音），必须百度中文优先 */
   var urls;
   if(zh && isMultiWord){
-    urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=1",
-            "https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
+    urls = ["https://fanyi.baidu.com/gettts?lan=zh&text=" + encodeURIComponent(text) + "&spd=3&source=web",
+            "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=1"];
   }else if(!zh && isMultiWord){
     urls = ["https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=2",
             "https://fanyi.baidu.com/gettts?lan=en&text=" + encodeURIComponent(text) + "&spd=3&source=web"];
