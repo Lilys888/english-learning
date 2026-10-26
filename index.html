@@ -70,6 +70,12 @@
   .dlg-item{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:13px 15px;cursor:pointer}
   .dlg-item .di-name{font-weight:700;font-size:15px}
   .dlg-item .di-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .pat-ex{margin-top:8px;border-top:1px dashed var(--border);padding-top:6px}
+  .pat-line{font-size:13px;line-height:1.7;padding:4px 6px;border-radius:8px;cursor:pointer;text-align:left}
+  .pat-line:active{background:rgba(74,108,247,.08)}
+  .pat-line .pe-en{color:var(--text)}
+  .pat-line .pe-cn{color:var(--muted);font-size:12px}
+  .pat-tag{display:inline-block;font-size:11px;background:rgba(74,108,247,.1);color:var(--primary);border-radius:8px;padding:1px 8px;margin-left:6px;vertical-align:middle}
   .dl-line{display:flex;gap:8px;align-items:flex-start;margin-top:12px}
   .dl-line.whoB{flex-direction:row-reverse}
   .dl-spe{border:none;background:#eef1ff;color:var(--primary);border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;flex:none;margin-top:3px}
@@ -145,6 +151,7 @@
     <button data-tab="cards" class="active"><span class="ico">🎴</span>卡片</button>
     <button data-tab="ipa"><span class="ico">🔤</span>音标</button>
     <button data-tab="dlg"><span class="ico">💬</span>对话</button>
+    <button data-tab="pat"><span class="ico">📋</span>句型</button>
     <button data-tab="quiz"><span class="ico">✏️</span>测验</button>
     <button data-tab="trans"><span class="ico">🌐</span>翻译</button>
     <button data-tab="manage"><span class="ico">📥</span>词库</button>
@@ -231,6 +238,14 @@
       <div id="dlgBubbles"></div>
       <div class="hint">🔊 朗读单句 · 点击气泡核对原文/中文 · A/B 说话人使用不同口音，听声即可分辨</div>
     </div>
+  </section>
+
+  <section id="sec-pat">
+    <h2>📋 常用句型 · 初中 / 高中 / 四级 / 六级</h2>
+    <div class="hint" style="margin:0 0 4px">点击句型卡片 → 依次连读全部例句；点击单条例句 → 只读该句<br>💡 建议先记住句型公式，再跟读例句造出自己的句子</div>
+    <div id="patChips" class="dlg-chips"></div>
+    <input id="patSearch" class="search-in" placeholder="🔍 搜索句型、说明或例句…" style="width:100%">
+    <div id="patList" class="dlg-list"></div>
   </section>
 
   <section id="sec-quiz">
@@ -797,9 +812,11 @@ function switchTab(tab){
   if(tab === "notes") renderNotes();
   if(tab === "ipa") renderIpa();
   if(tab === "dlg") renderDlgHome();
+  if(tab === "pat") renderPatHome();
   if(tab !== "cards" && autoPlay.on) stopAutoPlay();   /* 离开卡片页时停止连播 */
   if(tab !== "dlg" && dlgAuto.on) stopDlgPlay();       /* 离开对话页时停止对话连播 */
   if(tab !== "ipa") ipaGen++;                         /* 离开音标页时中断例词连读 */
+  if(tab !== "pat") patGen++;                         /* 离开句型页时中断例句连读 */
 }
 
 /* ================= 音标学习 ================= */
@@ -1559,7 +1576,176 @@ function playCurAuto(gen){
   });
 }
 
-/* ================= 测验 ================= */
+/* ================= 常用句型（初中/高中/四级/六级，每个句型配例句） ================= */
+var PAT_LVS = { cjs: "🎒 初中", gz: "🎓 高中", cet4: "📖 四级", cet6: "📚 六级" };
+var BUILTIN_PATTERNS = [
+/* ---------- 初中 ---------- */
+{ lv:"cjs", tag:"存在", p:"There is/are …", d:"表示“某地有某物/某人”，is 接单数、are 接复数",
+  ex:[["There is a big tree in front of our school.","我们学校前面有一棵大树。"],
+      ["There are many students reading in the library.","图书馆里有很多学生在看书。"]] },
+{ lv:"cjs", tag:"建议", p:"How about / What about + 名词/doing", d:"提出建议或询问对方看法",
+  ex:[["How about going to the park this weekend?","这周末去公园怎么样？"],
+      ["What about a cup of coffee?","来杯咖啡怎么样？"]] },
+{ lv:"cjs", tag:"建议", p:"Why not + 动词原形 …?", d:"= Why don't you …? 提建议，“为什么不……呢”",
+  ex:[["Why not ask your teacher for help?","为什么不请老师帮忙呢？"]] },
+{ lv:"cjs", tag:"建议", p:"Would you like …?", d:"礼貌地邀请或询问对方意愿",
+  ex:[["Would you like something to drink?","你想喝点什么吗？"],
+      ["Would you like to join us for dinner?","你愿意和我们一起吃晚饭吗？"]] },
+{ lv:"cjs", tag:"请求", p:"Could you please + 动词原形 …?", d:"委婉请求别人做某事",
+  ex:[["Could you please open the window?","你能打开窗户吗？"],
+      ["Could you please say that again more slowly?","你能再慢一点说一遍吗？"]] },
+{ lv:"cjs", tag:"看法", p:"I think (that) …", d:"表达观点，否定通常前移（I don't think…）",
+  ex:[["I think English is very useful.","我认为英语非常有用。"],
+      ["I don't think he is right.","我认为他不对。"]] },
+{ lv:"cjs", tag:"程度", p:"too + 形容词/副词 + to do", d:"“太……而不能……”，表结果",
+  ex:[["He is too young to go to school.","他太小了，还不能上学。"],
+      ["The box is too heavy for me to carry.","这个箱子太重了，我搬不动。"]] },
+{ lv:"cjs", tag:"程度", p:"so + 形容词 + that 从句", d:"“如此……以至于……”，表结果",
+  ex:[["She was so tired that she fell asleep at once.","她太累了，一下子就睡着了。"]] },
+{ lv:"cjs", tag:"时间", p:"not … until …", d:"“直到……才……”",
+  ex:[["I didn't go to bed until my mother came back.","直到妈妈回来我才上床睡觉。"]] },
+{ lv:"cjs", tag:"比较", p:"as + 形容词/副词原级 + as", d:"同级比较，“和……一样……”",
+  ex:[["Tom runs as fast as Jack.","汤姆跑得和杰克一样快。"]] },
+{ lv:"cjs", tag:"比较", p:"比较级 + than …", d:"两者比较，“比……更……”",
+  ex:[["This book is more interesting than that one.","这本书比那本有意思。"]] },
+{ lv:"cjs", tag:"习惯", p:"used to + 动词原形", d:"过去常常做（现在不做了），注意与 be used to doing 区分",
+  ex:[["I used to play basketball after school.","我过去放学后常打篮球。"],
+      ["He used to live in the countryside.","他过去住在农村。"]] },
+{ lv:"cjs", tag:"建议", p:"had better (not) + 动词原形", d:"“最好（不要）做某事”，后接原形",
+  ex:[["You'd better take an umbrella with you.","你最好带把伞。"],
+      ["You'd better not stay up too late.","你最好别熬夜太晚。"]] },
+{ lv:"cjs", tag:"邀请", p:"Shall we …?", d:"提出共同做某事的邀请",
+  ex:[["Shall we go for a walk after dinner?","晚饭后我们去散步好吗？"]] },
+/* ---------- 高中 ---------- */
+{ lv:"gz", tag:"形式主语", p:"It is + adj. + (for/of sb) + to do", d:"it 作形式主语，真正主语是不定式",
+  ex:[["It is important for us to learn English well.","学好英语对我们来说很重要。"],
+      ["It was kind of you to help me.","你能帮我真是太好了。"]] },
+{ lv:"gz", tag:"强调句", p:"It is/was + 强调部分 + that/who …", d:"强调句型，去掉 It is…that 后句子仍完整",
+  ex:[["It was in the park that I met her yesterday.","我昨天就是在公园里遇见她的。"],
+      ["It was Tom who broke the window.","打破窗户的正是汤姆。"]] },
+{ lv:"gz", tag:"定语从句", p:"… who/which/that + 从句", d:"先行词是人用 who，物用 which/that",
+  ex:[["The girl who is standing there is my sister.","站在那里的那个女孩是我妹妹。"],
+      ["This is the book which I bought yesterday.","这是我昨天买的那本书。"]] },
+{ lv:"gz", tag:"名词性从句", p:"What + 从句 + 谓语 …", d:"what 引导主语从句并在从句中充当成分",
+  ex:[["What surprised me most was that he passed the exam.","最让我吃惊的是他通过了考试。"]] },
+{ lv:"gz", tag:"虚拟语气", p:"If + 过去式, would + 动词原形", d:"与现在事实相反的虚拟条件句",
+  ex:[["If I were you, I would accept the offer.","如果我是你，我就会接受这个提议。"]] },
+{ lv:"gz", tag:"虚拟语气", p:"wish + 过去式 / had done", d:"wish 后接虚拟语气，表达难以实现的愿望",
+  ex:[["I wish I could fly like a bird.","真希望我能像鸟一样飞。"],
+      ["I wish I had studied harder when I was young.","真希望我年轻时学习更努力些。"]] },
+{ lv:"gz", tag:"让步", p:"No matter how/what/who …, …", d:"让步状语从句，“无论……”",
+  ex:[["No matter how hard it is, I will never give up.","无论有多难，我都绝不放弃。"]] },
+{ lv:"gz", tag:"分词", p:"现在分词 doing 作状语", d:"表主动或伴随，逻辑主语须与主句一致",
+  ex:[["Hearing the good news, we all jumped with joy.","听到这个好消息，我们都高兴得跳了起来。"]] },
+{ lv:"gz", tag:"分词", p:"过去分词 done 作状语", d:"表被动或完成",
+  ex:[["Given more time, we could do it better.","如果多给些时间，我们能做得更好。"]] },
+{ lv:"gz", tag:"with 结构", p:"with + 名词 + 形容词/分词/介词短语", d:"with 复合结构作伴随状语",
+  ex:[["He fell asleep with the light on.","他开着灯就睡着了。"],
+      ["She sat there with her eyes closed.","她闭着眼睛坐在那里。"]] },
+{ lv:"gz", tag:"倒装", p:"Not only … but (also) …（句首倒装）", d:"not only 置句首时前半句用部分倒装",
+  ex:[["Not only did he come late, but he also forgot his homework.","他不仅迟到了，还忘了带作业。"]] },
+{ lv:"gz", tag:"比较", p:"The + 比较级…, the + 比较级…", d:"“越……就越……”",
+  ex:[["The harder you work, the luckier you get.","你越努力，就越幸运。"]] },
+{ lv:"gz", tag:"观点", p:"There is no doubt that …", d:"“毫无疑问……”",
+  ex:[["There is no doubt that he will win the game.","毫无疑问他会赢得比赛。"]] },
+{ lv:"gz", tag:"观点", p:"It is (high) time that + 过去式", d:"“该是……的时候了”，从句用过去式",
+  ex:[["It is high time that we took action.","我们该采取行动了。"]] },
+{ lv:"gz", tag:"倒装", p:"Only + 状语 + 部分倒装", d:"only 修饰状语置于句首时，主句部分倒装",
+  ex:[["Only in this way can we solve the problem.","只有这样我们才能解决这个问题。"]] },
+/* ---------- 四级 ---------- */
+{ lv:"cet4", tag:"话题引入", p:"When it comes to …", d:"“谈到/说到……”，作文话题引入",
+  ex:[["When it comes to climate change, opinions vary from person to person.","谈到气候变化，人们的看法各不相同。"]] },
+{ lv:"cet4", tag:"趋势", p:"An increasing number of …", d:"“越来越多……”，描述趋势（比 more and more 更书面）",
+  ex:[["An increasing number of people prefer to shop online.","越来越多的人喜欢网上购物。"]] },
+{ lv:"cet4", tag:"重要性", p:"… play an important role in …", d:"“在某方面起重要作用”，写作高频",
+  ex:[["Education plays an important role in personal development.","教育在个人发展中起着重要作用。"]] },
+{ lv:"cet4", tag:"观点", p:"There is a growing awareness that …", d:"“人们越来越意识到……”",
+  ex:[["There is a growing awareness that mental health matters.","人们越来越意识到心理健康的重要性。"]] },
+{ lv:"cet4", tag:"观点", p:"It is universally acknowledged that …", d:"“众所周知……”",
+  ex:[["It is universally acknowledged that practice makes perfect.","众所周知，熟能生巧。"]] },
+{ lv:"cet4", tag:"受益", p:"… benefit from / be beneficial to …", d:"“从……中受益 / 对……有益”",
+  ex:[["Students can benefit greatly from reading classics.","学生能从阅读名著中受益匪浅。"]] },
+{ lv:"cet4", tag:"因果", p:"… contribute to …", d:"“有助于/促成……”，注意 to 是介词",
+  ex:[["Regular exercise contributes to good health.","经常锻炼有助于身体健康。"]] },
+{ lv:"cet4", tag:"选择", p:"… rather than + 动词原形", d:"“宁愿……而不……”，连接并列成分",
+  ex:[["He chose to walk rather than take a taxi.","他宁愿走路也不打车。"]] },
+{ lv:"cet4", tag:"选择", p:"not … but rather …", d:"“不是……而是……”，强调真正原因",
+  ex:[["Success depends not on luck but on effort.","成功靠的不是运气而是努力。"]] },
+{ lv:"cet4", tag:"替代", p:"Instead of + 名词/doing", d:"“而不是……”，介词短语后接名词或动名词",
+  ex:[["Instead of complaining, we should take action.","与其抱怨，不如行动起来。"]] },
+{ lv:"cet4", tag:"义务", p:"… be supposed to do …", d:"“理应/应该做……”",
+  ex:[["We are supposed to arrive before nine.","我们应该在九点前到达。"]] },
+{ lv:"cet4", tag:"观点", p:"It cannot be denied that …", d:"“不可否认……”",
+  ex:[["It cannot be denied that technology has changed our lives.","不可否认，科技已经改变了我们的生活。"]] },
+{ lv:"cet4", tag:"因果", p:"… account for …", d:"“（比例上）占 / 是……的原因”",
+  ex:[["Personal errors account for most traffic accidents.","人为失误是大多数交通事故的原因。"]] },
+{ lv:"cet4", tag:"处境", p:"… be faced with …", d:"“面临/面对……”，写作常用被动表达",
+  ex:[["College graduates are faced with fierce competition.","大学毕业生面临着激烈的竞争。"]] },
+/* ---------- 六级 ---------- */
+{ lv:"cet6", tag:"强调", p:"Nothing is more important than …", d:"“没有什么比……更重要”，强调首要性",
+  ex:[["Nothing is more important than health.","没有什么比健康更重要。"]] },
+{ lv:"cet6", tag:"建议", p:"It is imperative that + (should) do", d:"“……是当务之急”，从句用 (should+) 原形",
+  ex:[["It is imperative that the government take immediate measures.","政府必须立即采取措施。"]] },
+{ lv:"cet6", tag:"因果", p:"… be attributed to …", d:"“归因于……”，正式书面语",
+  ex:[["His success can be attributed to hard work.","他的成功可以归因于努力工作。"]] },
+{ lv:"cet6", tag:"举例", p:"A case in point is …", d:"“一个典型的例子是……”，论证举例",
+  ex:[["A case in point is the rapid growth of e-commerce.","一个典型的例子是电子商务的快速发展。"]] },
+{ lv:"cet6", tag:"背景", p:"With the development of …", d:"“随着……的发展”，作文开头经典句",
+  ex:[["With the development of technology, our lives have changed dramatically.","随着科技的发展，我们的生活发生了巨大变化。"]] },
+{ lv:"cet6", tag:"因果", p:"… give rise to / lead to …", d:"“引发/导致……”，多接负面结果",
+  ex:[["The new policy may give rise to heated debate.","新政策可能引发激烈的争论。"]] },
+{ lv:"cet6", tag:"承诺", p:"… be committed to doing …", d:"“致力于做……”，to 是介词接动名词",
+  ex:[["The company is committed to reducing carbon emissions.","该公司致力于减少碳排放。"]] },
+{ lv:"cet6", tag:"强调", p:"It is no exaggeration to say that …", d:"“可以毫不夸张地说……”",
+  ex:[["It is no exaggeration to say that the Internet has reshaped society.","可以毫不夸张地说，互联网重塑了社会。"]] },
+{ lv:"cet6", tag:"危害", p:"… pose a threat/challenge to …", d:"“对……构成威胁/挑战”",
+  ex:[["Climate change poses a serious threat to coastal cities.","气候变化对沿海城市构成严重威胁。"]] },
+{ lv:"cet6", tag:"观点", p:"As far as … be concerned, …", d:"“就……而言”，引出个人立场",
+  ex:[["As far as I am concerned, the advantages outweigh the disadvantages.","就我而言，利大于弊。"]] },
+{ lv:"cet6", tag:"倒装", p:"On no account / By no means + 倒装", d:"“绝不……”，否定状语置句首引起倒装",
+  ex:[["On no account should we ignore the warning signs.","我们绝不能忽视这些警示信号。"]] },
+{ lv:"cet6", tag:"融合", p:"… be integrated with …", d:"“与……融合/结合”",
+  ex:[["Traditional culture should be integrated with modern life.","传统文化应当与现代生活相融合。"]] }
+];
+var patLv = "", patGen = 0;
+function renderPatHome(){
+  var q = $("patSearch").value.trim().toLowerCase();
+  var chips = '<button data-lv="" class="' + (patLv === "" ? "active" : "") + '">全部</button>';
+  Object.keys(PAT_LVS).forEach(function(k){
+    chips += '<button data-lv="' + k + '" class="' + (patLv === k ? "active" : "") + '">' + PAT_LVS[k] + '</button>';
+  });
+  $("patChips").innerHTML = chips;
+  var list = "", shown = 0;
+  BUILTIN_PATTERNS.forEach(function(it, i){
+    if(patLv && it.lv !== patLv) return;
+    if(q && (it.p + " " + it.d + " " + it.tag + " " + it.ex.map(function(e){ return e.join(" "); }).join(" ")).toLowerCase().indexOf(q) < 0) return;
+    shown++;
+    list += '<div class="dlg-item" data-i="' + i + '">'
+          + '<div class="di-name">' + esc(it.p) + '<span class="pat-tag">' + esc(it.tag) + '</span></div>'
+          + '<div class="di-sub">' + esc(it.d) + '</div>'
+          + '<div class="pat-ex">' + it.ex.map(function(e){
+              return '<div class="pat-line" data-en="' + esc(e[0]).replace(/"/g, "&quot;") + '">'
+                   + '<div class="pe-en">🔊 ' + esc(e[0]) + '</div>'
+                   + '<div class="pe-cn">' + esc(e[1]) + '</div></div>';
+            }).join("") + '</div></div>';
+  });
+  $("patList").innerHTML = list || '<div class="empty">没有匹配的句型</div>';
+}
+/* 点击句型卡片：依次连读该句型的全部例句（代际保护，切页/换筛选/点新卡片即中断旧链） */
+function playPat(idx){
+  patGen++;
+  var g = patGen, it = BUILTIN_PATTERNS[idx], i = 0;
+  if(!it) return;
+  (function next(){
+    if(g !== patGen || i >= it.ex.length) return;
+    speakThen(it.ex[i][0], function(){
+      if(g !== patGen) return;
+      i++;
+      setTimeout(next, 500);
+    });
+  })();
+}
+
 var qState = null;
 function startQuiz(pool, count, type){
   if(!pool || pool.length < 4){ toast("可用单词不足 4 个，无法测验"); return; }
@@ -1898,6 +2084,19 @@ function init(){
   $("btnUnknow").addEventListener("click", function(){ markCard(false); });
   $("btnShuffle").addEventListener("click", function(){ WORDS = shuffle(WORDS); buildCatSel(); refreshView(); toast("已打乱顺序 🔀"); });
   $("btnAuto").addEventListener("click", toggleAutoPlay);
+  /* 句型页：分级筛选 / 搜索 / 点卡片连读例句、点单句只读该句 */
+  $("patChips").addEventListener("click", function(e){
+    var b = e.target.closest ? e.target.closest("button[data-lv]") : null;
+    if(!b) return;
+    patLv = b.dataset.lv; patGen++; renderPatHome();
+  });
+  $("patSearch").addEventListener("input", function(){ patGen++; renderPatHome(); });
+  $("patList").addEventListener("click", function(e){
+    var line = e.target.closest ? e.target.closest(".pat-line") : null;
+    if(line && line.getAttribute("data-en")){ speak(line.getAttribute("data-en")); return; }
+    var card = e.target.closest ? e.target.closest(".dlg-item") : null;
+    if(card && card.dataset.i) playPat(parseInt(card.dataset.i, 10));
+  });
   /* 起读序号：手动模式填好回车（或失焦）即跳到该词；连播中则停掉并从新序号重新连播 */
   $("startNo").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); applyStartNo(); } });
   $("startNo").addEventListener("change", applyStartNo);
