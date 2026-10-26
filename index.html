@@ -206,7 +206,7 @@
 
   <section id="sec-ipa">
     <h2>🔤 英语国际音标（48 个）</h2>
-    <div class="hint" style="margin:0 0 4px">点击音标卡片 → 先听该音标的发音，再依次连读例词；点击单个例词 → 只读该词<br>※ 音标发音由语音引擎拟音朗读（辅音后会自然带出一个短元音），精确读音请以例词为准</div>
+    <div class="hint" style="margin:0 0 4px">点击音标卡片 → 先听该音标的真人示范发音，再依次连读例词；点击单个例词 → 只读该词<br>※ 音标真人录音源自 Wikipedia「IPA chart with audio」（CC BY-SA 4.0）；破擦音与双元音为官方单元音/辅音录音无缝拼接</div>
     <div id="ipaGroups"></div>
   </section>
 
@@ -573,54 +573,54 @@ EMBEDDED_BOOKS.uniphrases = [
 <script>
 /* 48 个英语国际音标（DJ 英式音标），ws 为示例单词 [单词, 中文]，点击卡片连读以强化记忆 */
 var BUILTIN_IPA = [
-{s:"iː",snd:"ee",cat:"单元音",tip:"长元音，嘴角向两侧咧开，类似“衣”拖长",ws:[["see","看见"],["eat","吃"],["teacher","老师"]]},
-{s:"ɪ",snd:"ih",cat:"单元音",tip:"短促，介于“衣”和“诶”之间，比 iː 松",ws:[["sit","坐"],["big","大的"],["fish","鱼"]]},
-{s:"e",snd:"eh",cat:"单元音",tip:"短音，嘴半开，舌位中前",ws:[["bed","床"],["pen","钢笔"],["egg","鸡蛋"]]},
-{s:"æ",snd:"aah",cat:"单元音",tip:"嘴张大，舌压低，类似“哎”但更长",ws:[["cat","猫"],["apple","苹果"],["happy","快乐的"]]},
-{s:"ɑː",snd:"ar",cat:"单元音",tip:"长音，口腔全开，舌后缩，类似“啊”",ws:[["car","汽车"],["far","远的"],["father","父亲"]]},
-{s:"ɒ",snd:"aw",cat:"单元音",tip:"短圆唇，英音中的短 o，美音读作 ɑː",ws:[["dog","狗"],["hot","热的"],["box","盒子"]]},
-{s:"ɔː",snd:"awe",cat:"单元音",tip:"长圆唇，类似“噢”拖长",ws:[["door","门"],["ball","球"],["four","四"]]},
-{s:"ʊ",snd:"oo",cat:"单元音",tip:"短促圆唇，介于“乌”和“哦”之间",ws:[["book","书"],["good","好的"],["put","放"]]},
-{s:"uː",snd:"ooh",cat:"单元音",tip:"长音，双唇收圆突出，类似“乌”拖长",ws:[["food","食物"],["blue","蓝色的"],["two","二"]]},
-{s:"ʌ",snd:"uh",cat:"单元音",tip:"短音，口腔中性放松，类似“啊”短促",ws:[["bus","公交车"],["cup","杯子"],["love","爱"]]},
-{s:"ɜː",snd:"err",cat:"单元音",tip:"长音，舌中央卷起，唇扁平，类似“饿”",ws:[["bird","鸟"],["girl","女孩"],["learn","学习"]]},
-{s:"ə",snd:"uh",cat:"单元音",tip:"最常见弱读音，轻短含糊，只在非重读处",ws:[["about","关于"],["ago","以前"],["banana","香蕉"]]},
-{s:"eɪ",snd:"ay",cat:"双元音",tip:"由 e 滑向 ɪ，类似“诶”",ws:[["day","天"],["name","名字"],["rain","雨"]]},
-{s:"aɪ",snd:"eye",cat:"双元音",tip:"由 a 滑向 ɪ，类似“爱”",ws:[["time","时间"],["like","喜欢"],["night","夜晚"]]},
-{s:"ɔɪ",snd:"oy",cat:"双元音",tip:"由 ɔ 滑向 ɪ，类似“哦伊”",ws:[["boy","男孩"],["toy","玩具"],["enjoy","享受"]]},
-{s:"əʊ",snd:"oh",cat:"双元音",tip:"由 ə 滑向 ʊ，类似“欧”",ws:[["go","去"],["home","家"],["phone","电话"]]},
-{s:"aʊ",snd:"ow",cat:"双元音",tip:"由 a 滑向 ʊ，类似“奥”",ws:[["now","现在"],["house","房子"],["down","向下"]]},
-{s:"ɪə",snd:"ear",cat:"双元音",tip:"由 ɪ 滑向 ə，类似“伊尔”",ws:[["near","近的"],["here","这里"],["ear","耳朵"]]},
-{s:"eə",snd:"air",cat:"双元音",tip:"由 e 滑向 ə，类似“哎尔”",ws:[["hair","头发"],["pear","梨"],["where","哪里"]]},
-{s:"ʊə",snd:"oor",cat:"双元音",tip:"由 ʊ 滑向 ə，类似“乌尔”",ws:[["tour","旅行"],["sure","确信的"],["poor","贫穷的"]]},
-{s:"p",snd:"pa",cat:"清辅音",tip:"双唇闭合送气爆发，声带不振动",ws:[["pen","钢笔"],["apple","苹果"],["map","地图"]]},
-{s:"t",snd:"ta",cat:"清辅音",tip:"舌尖抵上齿龈送气爆发",ws:[["ten","十"],["water","水"],["cat","猫"]]},
-{s:"k",snd:"ka",cat:"清辅音",tip:"舌后抵软腭送气爆发",ws:[["key","钥匙"],["cake","蛋糕"],["book","书"]]},
-{s:"f",snd:"fa",cat:"清辅音",tip:"上齿咬下唇送气摩擦",ws:[["fish","鱼"],["life","生活"],["coffee","咖啡"]]},
-{s:"s",snd:"sa",cat:"清辅音",tip:"舌尖接近上齿龈，气流摩擦而出",ws:[["sun","太阳"],["class","班级"],["bus","公交车"]]},
-{s:"θ",snd:"tha",cat:"清辅音",tip:"舌尖轻咬上下齿之间送气，勿读成 s",ws:[["think","想"],["three","三"],["month","月份"]]},
-{s:"ʃ",snd:"sha",cat:"清辅音",tip:"双唇略圆突出，类似“许”的声母",ws:[["she","她"],["shop","商店"],["English","英语"]]},
-{s:"tʃ",snd:"cha",cat:"清辅音",tip:"t 与 ʃ 连发，类似“吃”的声母",ws:[["chair","椅子"],["teacher","老师"],["watch","手表"]]},
-{s:"tr",snd:"tra",cat:"清辅音",tip:"t 与 r 连读，类似“戳”的声母",ws:[["tree","树"],["train","火车"],["country","国家"]]},
-{s:"ts",snd:"tsa",cat:"清辅音",tip:"t 与 s 连读，类似“次”的声母（名词复数）",ws:[["cats","猫（复数）"],["seats","座位（复数）"],["bits","少量（复数）"]]},
-{s:"b",snd:"ba",cat:"浊辅音",tip:"口型同 p，但声带振动不送气",ws:[["book","书"],["table","桌子"],["job","工作"]]},
-{s:"d",snd:"da",cat:"浊辅音",tip:"口型同 t，声带振动",ws:[["day","天"],["read","阅读"],["good","好的"]]},
-{s:"g",snd:"ga",cat:"浊辅音",tip:"口型同 k，声带振动",ws:[["girl","女孩"],["big","大的"],["dog","狗"]]},
-{s:"v",snd:"va",cat:"浊辅音",tip:"口型同 f，声带振动，勿读成 w",ws:[["very","非常"],["love","爱"],["five","五"]]},
-{s:"z",snd:"za",cat:"浊辅音",tip:"口型同 s，声带振动，勿读成 s",ws:[["zoo","动物园"],["music","音乐"],["zero","零"]]},
-{s:"ð",snd:"tha",cat:"浊辅音",tip:"口型同 θ，声带振动，勿读成 z",ws:[["this","这个"],["mother","母亲"],["with","和…一起"]]},
-{s:"ʒ",snd:"zha",cat:"浊辅音",tip:"口型同 ʃ，声带振动，类似“日”的声母",ws:[["usually","通常"],["television","电视"],["pleasure","愉快"]]},
-{s:"dʒ",snd:"ja",cat:"浊辅音",tip:"d 与 ʒ 连发，类似“基”的声母",ws:[["job","工作"],["orange","橙子"],["judge","判断"]]},
-{s:"dr",snd:"dra",cat:"浊辅音",tip:"d 与 r 连读，类似“朱”的声母",ws:[["dream","梦想"],["drink","喝"],["children","孩子们"]]},
-{s:"dz",snd:"dza",cat:"浊辅音",tip:"d 与 z 连读，类似“兹”（名词复数浊化）",ws:[["beds","床（复数）"],["friends","朋友（复数）"],["words","单词（复数）"]]},
-{s:"m",snd:"ma",cat:"浊辅音",tip:"双唇闭合，气流从鼻腔出，声带振动",ws:[["man","男人"],["home","家"],["some","一些"]]},
-{s:"n",snd:"na",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从鼻腔出",ws:[["nine","九"],["moon","月亮"],["sun","太阳"]]},
-{s:"ŋ",snd:"ng",cat:"浊辅音",tip:"舌后抵软腭，鼻音，常见于 -ng 结尾",ws:[["sing","唱歌"],["long","长的"],["English","英语"]]},
-{s:"h",snd:"ha",cat:"浊辅音",tip:"声门送气，类似轻叹气，口型随后元音变化",ws:[["he","他"],["hello","你好"],["hand","手"]]},
-{s:"l",snd:"la",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从舌侧出，注意尾辅音 dark l",ws:[["like","喜欢"],["love","爱"],["school","学校"]]},
-{s:"r",snd:"ra",cat:"浊辅音",tip:"舌尖卷起不触上腭，双唇略圆",ws:[["red","红色的"],["run","跑"],["write","写"]]},
-{s:"j",snd:"ya",cat:"浊辅音",tip:"舌位似 iː 快速滑向后面的元音，类似“耶”的声母",ws:[["yes","是"],["you","你"],["yellow","黄色的"]]},
-{s:"w",snd:"wa",cat:"浊辅音",tip:"双唇收圆突出快速滑向后面的元音，类似“乌”起始",ws:[["we","我们"],["water","水"],["window","窗户"]]}
+{s:"iː",au:"ii",snd:"ee",cat:"单元音",tip:"长元音，嘴角向两侧咧开，类似“衣”拖长",ws:[["see","看见"],["eat","吃"],["teacher","老师"]]},
+{s:"ɪ",au:"ih",snd:"ih",cat:"单元音",tip:"短促，介于“衣”和“诶”之间，比 iː 松",ws:[["sit","坐"],["big","大的"],["fish","鱼"]]},
+{s:"e",au:"e",snd:"eh",cat:"单元音",tip:"短音，嘴半开，舌位中前",ws:[["bed","床"],["pen","钢笔"],["egg","鸡蛋"]]},
+{s:"æ",au:"ae",snd:"aah",cat:"单元音",tip:"嘴张大，舌压低，类似“哎”但更长",ws:[["cat","猫"],["apple","苹果"],["happy","快乐的"]]},
+{s:"ɑː",au:"aa",snd:"ar",cat:"单元音",tip:"长音，口腔全开，舌后缩，类似“啊”",ws:[["car","汽车"],["far","远的"],["father","父亲"]]},
+{s:"ɒ",au:"aw",snd:"aw",cat:"单元音",tip:"短圆唇，英音中的短 o，美音读作 ɑː",ws:[["dog","狗"],["hot","热的"],["box","盒子"]]},
+{s:"ɔː",au:"awe",snd:"awe",cat:"单元音",tip:"长圆唇，类似“噢”拖长",ws:[["door","门"],["ball","球"],["four","四"]]},
+{s:"ʊ",au:"oo",snd:"oo",cat:"单元音",tip:"短促圆唇，介于“乌”和“哦”之间",ws:[["book","书"],["good","好的"],["put","放"]]},
+{s:"uː",au:"ooh",snd:"ooh",cat:"单元音",tip:"长音，双唇收圆突出，类似“乌”拖长",ws:[["food","食物"],["blue","蓝色的"],["two","二"]]},
+{s:"ʌ",au:"uh",snd:"uh",cat:"单元音",tip:"短音，口腔中性放松，类似“啊”短促",ws:[["bus","公交车"],["cup","杯子"],["love","爱"]]},
+{s:"ɜː",au:"err",snd:"err",cat:"单元音",tip:"长音，舌中央卷起，唇扁平，类似“饿”",ws:[["bird","鸟"],["girl","女孩"],["learn","学习"]]},
+{s:"ə",au:"schwa",snd:"uh",cat:"单元音",tip:"最常见弱读音，轻短含糊，只在非重读处",ws:[["about","关于"],["ago","以前"],["banana","香蕉"]]},
+{s:"eɪ",au:"ei",snd:"ay",cat:"双元音",tip:"由 e 滑向 ɪ，类似“诶”",ws:[["day","天"],["name","名字"],["rain","雨"]]},
+{s:"aɪ",au:"ai",snd:"eye",cat:"双元音",tip:"由 a 滑向 ɪ，类似“爱”",ws:[["time","时间"],["like","喜欢"],["night","夜晚"]]},
+{s:"ɔɪ",au:"oi",snd:"oy",cat:"双元音",tip:"由 ɔ 滑向 ɪ，类似“哦伊”",ws:[["boy","男孩"],["toy","玩具"],["enjoy","享受"]]},
+{s:"əʊ",au:"ou",snd:"oh",cat:"双元音",tip:"由 ə 滑向 ʊ，类似“欧”",ws:[["go","去"],["home","家"],["phone","电话"]]},
+{s:"aʊ",au:"au",snd:"ow",cat:"双元音",tip:"由 a 滑向 ʊ，类似“奥”",ws:[["now","现在"],["house","房子"],["down","向下"]]},
+{s:"ɪə",au:"ie",snd:"ear",cat:"双元音",tip:"由 ɪ 滑向 ə，类似“伊尔”",ws:[["near","近的"],["here","这里"],["ear","耳朵"]]},
+{s:"eə",au:"ea",snd:"air",cat:"双元音",tip:"由 e 滑向 ə，类似“哎尔”",ws:[["hair","头发"],["pear","梨"],["where","哪里"]]},
+{s:"ʊə",au:"ue",snd:"oor",cat:"双元音",tip:"由 ʊ 滑向 ə，类似“乌尔”",ws:[["tour","旅行"],["sure","确信的"],["poor","贫穷的"]]},
+{s:"p",au:"p",snd:"pa",cat:"清辅音",tip:"双唇闭合送气爆发，声带不振动",ws:[["pen","钢笔"],["apple","苹果"],["map","地图"]]},
+{s:"t",au:"t",snd:"ta",cat:"清辅音",tip:"舌尖抵上齿龈送气爆发",ws:[["ten","十"],["water","水"],["cat","猫"]]},
+{s:"k",au:"k",snd:"ka",cat:"清辅音",tip:"舌后抵软腭送气爆发",ws:[["key","钥匙"],["cake","蛋糕"],["book","书"]]},
+{s:"f",au:"f",snd:"fa",cat:"清辅音",tip:"上齿咬下唇送气摩擦",ws:[["fish","鱼"],["life","生活"],["coffee","咖啡"]]},
+{s:"s",au:"s",snd:"sa",cat:"清辅音",tip:"舌尖接近上齿龈，气流摩擦而出",ws:[["sun","太阳"],["class","班级"],["bus","公交车"]]},
+{s:"θ",au:"th",snd:"tha",cat:"清辅音",tip:"舌尖轻咬上下齿之间送气，勿读成 s",ws:[["think","想"],["three","三"],["month","月份"]]},
+{s:"ʃ",au:"sh",snd:"sha",cat:"清辅音",tip:"双唇略圆突出，类似“许”的声母",ws:[["she","她"],["shop","商店"],["English","英语"]]},
+{s:"tʃ",au:"ch",snd:"cha",cat:"清辅音",tip:"t 与 ʃ 连发，类似“吃”的声母",ws:[["chair","椅子"],["teacher","老师"],["watch","手表"]]},
+{s:"tr",au:"tr",snd:"tra",cat:"清辅音",tip:"t 与 r 连读，类似“戳”的声母",ws:[["tree","树"],["train","火车"],["country","国家"]]},
+{s:"ts",au:"ts",snd:"tsa",cat:"清辅音",tip:"t 与 s 连读，类似“次”的声母（名词复数）",ws:[["cats","猫（复数）"],["seats","座位（复数）"],["bits","少量（复数）"]]},
+{s:"b",au:"b",snd:"ba",cat:"浊辅音",tip:"口型同 p，但声带振动不送气",ws:[["book","书"],["table","桌子"],["job","工作"]]},
+{s:"d",au:"d",snd:"da",cat:"浊辅音",tip:"口型同 t，声带振动",ws:[["day","天"],["read","阅读"],["good","好的"]]},
+{s:"g",au:"g",snd:"ga",cat:"浊辅音",tip:"口型同 k，声带振动",ws:[["girl","女孩"],["big","大的"],["dog","狗"]]},
+{s:"v",au:"v",snd:"va",cat:"浊辅音",tip:"口型同 f，声带振动，勿读成 w",ws:[["very","非常"],["love","爱"],["five","五"]]},
+{s:"z",au:"z",snd:"za",cat:"浊辅音",tip:"口型同 s，声带振动，勿读成 s",ws:[["zoo","动物园"],["music","音乐"],["zero","零"]]},
+{s:"ð",au:"dh",snd:"tha",cat:"浊辅音",tip:"口型同 θ，声带振动，勿读成 z",ws:[["this","这个"],["mother","母亲"],["with","和…一起"]]},
+{s:"ʒ",au:"zh",snd:"zha",cat:"浊辅音",tip:"口型同 ʃ，声带振动，类似“日”的声母",ws:[["usually","通常"],["television","电视"],["pleasure","愉快"]]},
+{s:"dʒ",au:"j",snd:"ja",cat:"浊辅音",tip:"d 与 ʒ 连发，类似“基”的声母",ws:[["job","工作"],["orange","橙子"],["judge","判断"]]},
+{s:"dr",au:"dr",snd:"dra",cat:"浊辅音",tip:"d 与 r 连读，类似“朱”的声母",ws:[["dream","梦想"],["drink","喝"],["children","孩子们"]]},
+{s:"dz",au:"dz",snd:"dza",cat:"浊辅音",tip:"d 与 z 连读，类似“兹”（名词复数浊化）",ws:[["beds","床（复数）"],["friends","朋友（复数）"],["words","单词（复数）"]]},
+{s:"m",au:"m",snd:"ma",cat:"浊辅音",tip:"双唇闭合，气流从鼻腔出，声带振动",ws:[["man","男人"],["home","家"],["some","一些"]]},
+{s:"n",au:"n",snd:"na",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从鼻腔出",ws:[["nine","九"],["moon","月亮"],["sun","太阳"]]},
+{s:"ŋ",au:"ng",snd:"ng",cat:"浊辅音",tip:"舌后抵软腭，鼻音，常见于 -ng 结尾",ws:[["sing","唱歌"],["long","长的"],["English","英语"]]},
+{s:"h",au:"h",snd:"ha",cat:"浊辅音",tip:"声门送气，类似轻叹气，口型随后元音变化",ws:[["he","他"],["hello","你好"],["hand","手"]]},
+{s:"l",au:"l",snd:"la",cat:"浊辅音",tip:"舌尖抵上齿龈，气流从舌侧出，注意尾辅音 dark l",ws:[["like","喜欢"],["love","爱"],["school","学校"]]},
+{s:"r",au:"r",snd:"ra",cat:"浊辅音",tip:"舌尖卷起不触上腭，双唇略圆",ws:[["red","红色的"],["run","跑"],["write","写"]]},
+{s:"j",au:"y",snd:"ya",cat:"浊辅音",tip:"舌位似 iː 快速滑向后面的元音，类似“耶”的声母",ws:[["yes","是"],["you","你"],["yellow","黄色的"]]},
+{s:"w",au:"w",snd:"wa",cat:"浊辅音",tip:"双唇收圆突出快速滑向后面的元音，类似“乌”起始",ws:[["we","我们"],["water","水"],["window","窗户"]]}
 ];
 </script>
 <script>
@@ -839,11 +839,35 @@ function playIpaTile(idx){
     speakThen(p.ws[i][0], function(){ i++; next(); });
   }
   if(tile) tile.classList.add("playing");
-  /* 先读音标本身的拟音（如 /iː/→ee、/ʃ/→sha），再依次连读例词，建立“音-标-词”关联 */
-  speakThen(p.snd, function(){
+  /* 先播放音标的真人示范录音（audio/ipa/，与页面同源、零外网依赖），
+     录音加载失败时退回语音引擎拟音，播完再依次连读例词，建立“音-标-词”关联 */
+  playIpaSound(p, function(){
     if(g !== ipaGen){ clearHi(); return; }
     next();
   });
+}
+/* 播放音标本体：本地真人 mp3 优先；任何失败（缺文件/加载错误/超时无声）自动退回 TTS 拟音 */
+function playIpaSound(p, cb){
+  var done = false;
+  function fin(){ if(done) return; done = true; cb(); }
+  function fallback(){
+    if(done) return;
+    try{ a.onended = null; a.onerror = null; }catch(e){}
+    try{ a.pause(); a.src = ""; }catch(e){}
+    if(curAudio === a) curAudio = null;
+    speakThen(p.snd, fin);
+  }
+  if(!p.au){ speakThen(p.snd, fin); return; }
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(curAudio){ try{ curAudio.pause(); }catch(e){} curAudio = null; }
+  var a = new Audio("audio/ipa/" + p.au + ".mp3");
+  a.preload = "auto";
+  var tGuard = setTimeout(function(){ if(!a.duration && !a.currentTime) fallback(); }, 4000);
+  a.onplaying = function(){ clearTimeout(tGuard); };
+  a.onended = function(){ clearTimeout(tGuard); fin(); };
+  a.onerror = fallback;
+  a.play().catch(fallback);
+  curAudio = a;
 }
 
 /* ================= 学习笔记 ================= */
