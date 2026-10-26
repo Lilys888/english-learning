@@ -178,6 +178,9 @@
         <button id="btnUnknow" class="btn no">✗ 不认识</button>
         <button id="btnShuffle" class="btn gray">🔀 打乱</button>
         <button id="btnAuto" class="btn gray" title="自动连播：先读英文再读释义，逐个单词播放">▶️ 自动连播</button>
+        <input id="startNo" class="search-in" type="number" min="1" inputmode="numeric"
+               placeholder="起读第几个" title="从第几个单词开始读：手动时填好回车即跳到该词；自动连播时从此处开始播放"
+               style="width:96px;padding:4px 8px;font-size:13px;margin-left:2px">
         <button id="noteFromCard" class="btn gray" title="为当前单词记一条笔记">📝 记笔记</button>
       </div>
       <div class="card-nav">
@@ -1493,6 +1496,23 @@ function autoTransOf(it){
   /* 只播释义内容，不播词性（如“拒绝；垃圾”而不是“n 拒绝”） */
   return (it.tr || []).map(function(t){ return t.c; }).join("；");
 }
+/* ================= 起读序号（自定义从第几个单词开始读） ================= */
+function startNoVal(){
+  var n = parseInt($("startNo").value, 10);
+  if(!n || n < 1) n = 1;                       /* 空或非法按 1 处理 */
+  if(viewWords.length && n > viewWords.length) n = viewWords.length;
+  return n;
+}
+/* 手动定位：跳到起读序号对应的单词；若正在连播，则停掉后从该词重新连播 */
+function applyStartNo(){
+  if(!viewWords.length){ toast("当前没有可播放的单词"); return; }
+  var raw = $("startNo").value.trim();
+  if(!raw) return;                             /* 没填就不定位（连播时留空=从第 1 个开始） */
+  var n = startNoVal();
+  if(autoPlay.on){ startAutoPlay(); return; }  /* 连播中改序号：直接从新序号重新开始 */
+  cardIdx = n - 1; renderCard();
+  toast("已定位到第 " + n + " 个单词，朗读将从此处开始");
+}
 function toggleAutoPlay(){
   if(autoPlay.on){ stopAutoPlay(); toast("已停止连播 ⏹"); }
   else startAutoPlay();
@@ -1502,7 +1522,8 @@ function startAutoPlay(){
   autoPlay.on = true;
   autoPlay.gen++;                        /* 代际 +1：旧链的所有回调立即作废 */
   stopAllAudio();
-  cardIdx = 0; renderCard();              /* 从第一个单词开始 */
+  cardIdx = startNoVal() - 1; renderCard();    /* 从“起读”框指定的第几个开始（默认第 1 个） */
+  if(autoPlay.on) toast("从第 " + (cardIdx + 1) + " 个开始连播");
   $("btnAuto").textContent = "⏹ 停止连播";
   playCurAuto(autoPlay.gen);
 }
@@ -1877,6 +1898,10 @@ function init(){
   $("btnUnknow").addEventListener("click", function(){ markCard(false); });
   $("btnShuffle").addEventListener("click", function(){ WORDS = shuffle(WORDS); buildCatSel(); refreshView(); toast("已打乱顺序 🔀"); });
   $("btnAuto").addEventListener("click", toggleAutoPlay);
+  /* 起读序号：手动模式填好回车（或失焦）即跳到该词；连播中则停掉并从新序号重新连播 */
+  $("startNo").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); applyStartNo(); } });
+  $("startNo").addEventListener("change", applyStartNo);
+
   $("btnPrev").addEventListener("click", function(){ nextCard(-1); });
   $("btnNext").addEventListener("click", function(){ nextCard(1); });
   $("cardSearch").addEventListener("input", refreshView);
