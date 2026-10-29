@@ -119,6 +119,9 @@
   .stat-cell .lbl{font-size:13px;color:var(--muted);margin-top:3px}
   .ta{width:100%;min-height:110px;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:16px;resize:vertical;font-family:inherit}
   .trans-out{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-top:12px;min-height:60px;white-space:pre-wrap;line-height:1.7;font-size:16px;display:none}
+  .trans-out .t-word{font-weight:600;font-size:18px;color:var(--primary)}
+  .trans-out .t-phone{font-weight:400;font-size:13px;color:var(--muted)}
+  .trans-out .t-sec{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted)}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .lang-tag{font-size:13px;color:var(--primary);background:#eef1ff;border-radius:20px;padding:3px 12px}
   .book-list{display:grid;gap:10px;margin-top:12px}
@@ -301,7 +304,7 @@
       <button id="transSpeak" class="btn gray">🔊 朗读</button>
     </div>
     <div id="transOut" class="trans-out"></div>
-    <div class="hint">翻译由 MyMemory 免费 API 提供，需联网；朗读使用设备自带语音。</div>
+    <div class="hint">主译由 MyMemory 提供，单词/短语的多释义来自有道词典（经 allorigins 中转），均需联网；朗读使用设备自带语音。</div>
   </section>
 
   <section id="sec-manage">
@@ -1836,25 +1839,79 @@ function finishQuiz(){
   $("rDetail").textContent = "答错的单词已加入错题本，可在「统计」页查看。";
 }
 
-/* ================= 翻译（MyMemory 免费 API） ================= */
+/* ================= 翻译（MyMemory 主译 + 有道词典多释义） ================= */
 var lastTrans = { text:"", from:"en", to:"zh" };
 function detectLang(text){ return isChinese(text) ? "zh-CN" : "en"; }
+function flatI(v){ // 有道的 l.i 是 字符串/数组/对象 混合结构，拍平成文本
+  if(v == null) return "";
+  if(typeof v === "string") return v;
+  if(Array.isArray(v)) return v.map(flatI).join("");
+  if(v.i) return flatI(v.i);
+  if(v["#text"]) return v["#text"];
+  return "";
+}
+function youdaoSenses(word){ // 查有道词典（经 allorigins 中转解决跨域），拿多词性释义
+  var u = "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://dict.youdao.com/jsonapi?q=" + encodeURIComponent(word));
+  return fetch(u).then(function(r){ return r.json(); }).then(function(d){
+    var w = d && d.ec && d.ec.word && d.ec.word[0];
+    if(!w) return null;
+    var trs = [];
+    (w.trs || []).forEach(function(t){
+      var s = "";
+      (t.tr || []).forEach(function(x){ s += flatI(x && x.l && x.l.i); });
+      s = s.trim();
+      if(s) trs.push(s);
+    });
+    return { trs: trs.slice(0, 6), phone: w.usphone || w.ukphone || "" };
+  });
+}
+function renderTrans(text, main, extras, phone){
+  var html = "";
+  if(phone) html += '<div class="t-word">📖 ' + esc(text) + ' <span class="t-phone">/' + esc(phone) + '/</span></div>';
+  html += '<div style="margin-top:6px">' + esc(main) + '</div>';
+  if(extras && extras.length){
+    html += '<div class="t-sec">多种释义（其他常见译法）：</div>';
+    var circ = "①②③④⑤⑥⑦⑧⑨⑩";
+    extras.forEach(function(e, i){
+      html += '<div style="margin-top:4px">' + circ.charAt(i % circ.length) + ' ' + esc(e) + '</div>';
+    });
+  }
+  $("transOut").innerHTML = html;
+}
 function doTranslate(text, from, to){
   if(!text.trim()){ toast("请输入要翻译的内容"); return; }
-  $("transOut").style.display = "block";
-  $("transOut").textContent = "翻译中…";
+  var box = $("transOut"); box.style.display = "block";
+  box.textContent = "翻译中…";
   var pair = from + "|" + to;
   var url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + encodeURIComponent(pair);
-  fetch(url).then(function(r){ return r.json(); }).then(function(d){
+  // 英文且无句读标点、不超过两个词 → 视为单词/短语，查多释义
+  var wordLike = from === "en" && !/[。！？，,.!?;；:：]/.test(text) && text.trim().split(/\s+/).length <= 2;
+  var pMain = fetch(url).then(function(r){ return r.json(); });
+  var pDic = wordLike ? youdaoSenses(text.trim()) : Promise.resolve(null);
+  pDic = pDic.catch(function(){ return null; }); // 词典失败不影响主译
+  Promise.all([pMain, pDic]).then(function(rs){
+    var d = rs[0], dic = rs[1];
     var out = d && d.responseData && d.responseData.translatedText;
     if(!out) throw new Error("empty");
     if(/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(out)) out = out.replace(/<[^>]+>/g, "") + "（片段过长已截断）";
-    $("transOut").textContent = out;
+    var extras = [];
+    if(dic && dic.trs && dic.trs.length){
+      dic.trs.forEach(function(s){ if(s !== out) extras.push(s); }); // 有道：多词性分组释义
+    }
+    if(extras.length < 2){ // 词典没给够时，用 MyMemory 多来源译法兜底
+      (d.matches || []).forEach(function(m){
+        var t = ((m && m.translation) || "").replace(/<[^>]+>/g, "").trim();
+        t = t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+        if(!t || t === out || t.toLowerCase() === text.toLowerCase()) return;
+        if(extras.indexOf(t) < 0) extras.push(t);
+      });
+    }
+    renderTrans(text, out, extras.slice(0, 6), dic ? dic.phone : "");
     lastTrans = { text: text, from: from, to: to };
     $("transDir").textContent = (from === "en" ? "英→中" : "中→英");
     $("transSwap").style.display = "";
   }).catch(function(){
-    $("transOut").textContent = "翻译失败：请检查网络后重试（翻译需联网）。";
+    box.textContent = "翻译失败：请检查网络后重试（翻译需联网）。";
   });
 }
 function translateGo(){
